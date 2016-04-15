@@ -1,16 +1,20 @@
 package main
 
-import (
-	"time"
+import "time"
 
-	"github.com/nu7hatch/gouuid"
-)
+type configuration struct {
+	HDConfiguration       modelInformation //The information for the HDTec panels
+	TecLiteConfiguraiton  modelInformation //the information for the TecLite panels
+	FliptopConfiguration  modelInformation //The information for the fliptop panels.
+	WaitTimeout           int              //the amount of time to wait for each touchpanel to come back after a reboot. Defaults to 300
+	FTPServiceLocation    string           //Locaitons for the microservices to be used.
+	TelnetServiceLocation string
+	PauseServiceLocaiton  string
+	Hostname              string //hostname and port of the server running the touchpanel update - to be used to format the callbacks.
+}
 
-type configurationData struct {
-	HDConfiguration      modelInformation //The information for the HDTec panels
-	TecLiteConfiguraiton modelInformation //the information for the TecLite panels
-	FliptopConfiguration modelInformation //The information for the fliptop panels.
-	WaitTimeout          int              //the amount of time to wait for each touchpanel to come back after a reboot. Defaults to 300
+type submissionRequest struct {
+	CallbackAddress string
 }
 
 //Represents information needed to update the touchpanels.
@@ -21,17 +25,11 @@ type modelInformation struct {
 	FirmwareVersion  string //The version of the firmeware to be loaded.
 }
 
-//A struct used to monitor each room status, as each room might have more than one touchpanel
-type roomProgress struct {
-	UUID     uuid.UUID
-	RoomName string
-	TPStatus []tpStatus
-	status   string
-}
-
 //Struct to represent a single touchpanel.
 type tpStatus struct {
-	UUID            uuid.UUID //UUID that is assigned to each touchpanel
+	UUID            string //UUID that is assigned to each touchpanel
+	RoomName        string //the name of the room associate with this touchpanel
+	Type            string
 	IPAddress       string    //IPAddress of the touchpanel
 	Steps           []step    //List of steps in the update process.
 	StartTime       time.Time //Time the update process was started
