@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/nu7hatch/gouuid"
@@ -13,30 +15,50 @@ import (
 	"github.com/zenazn/goji/web"
 )
 
-func buildStartRoomUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.ResponseWriter, r *http.Request) {
-	return func(c web.C, w http.ResponseWriter, r *http.Request) {
-		roomName := c.URLParams["roomName"]
+var tpStatusMap map[string]tpStatus //global map of tpStatus to allow for status updates.
+var config configuration            //global configuration data, readonly.
 
-		touchpanels, err := getTouchpanelsFromRoom(roomName) //get the touchpanels from the roomName
+func buildStartTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.ResponseWriter, r *http.Request) {
+	return func(c web.C, w http.ResponseWriter, r *http.Request) {
+		ipaddr := c.URLParams["ipAddress"]
+
+		bits, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "%s", err.Error())
+		}
+		var jobInfo = jobInformation{}
+
+		err = json.Unmarshal(bits, &jobInfo)
 
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "Could not get touchpanels from Roomname\n")
+			fmt.Fprintf(w, "%s", err.Error())
 		}
 
-		for indx := range touchpanels {
-			tp := &touchpanels[indx]
+		//TODO: Check job information
 
-			tp.StartTime = time.Now()
-			UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("Avengineers.byu.edu"+tp.IPAddress+tp.RoomName))
+		tp := tpStatus{
+			IPAddress: ipaddr,
+			Steps:     getTPSteps(),
+			StartTime: time.Now(),
+			CurStatus: "Submitted"}
 
-			tp.UUID = UUID.String()
-			tp.CurStatus = "Submitted"
+		//get the Information from the API about the current firmware/Project date
 
-			submissionChannel <- *tp
-		}
+		//-----------------------
+		//Temporary fix - assume everything is HD and we're getting that in from the
+		//Request body.
+		//-----------------------
+		tp.Information = jobInfo.HDConfiguration
+		//-----------------------
 
-		bits, _ := json.Marshal(touchpanels)
+		UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("Avengineers.byu.edu"+tp.IPAddress+tp.RoomName))
+		tp.UUID = UUID.String()
+
+		submissionChannel <- tp
+
+		bits, _ = json.Marshal(tp)
 		w.Header().Add("Content-Type", "applicaiton/json")
 
 		fmt.Fprintf(w, "%s", bits)
@@ -52,7 +74,7 @@ func checkRoomUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Not implemented.")
 }
 
-func startTPUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
+func startAllTPUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Not implemented.")
 }
 
@@ -72,29 +94,91 @@ func importConfig(configPath string) configuration {
 	return configurationData
 }
 
+func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "%s", err.Error())
+	}
+	var wr waitRequest
+	json.Unmarshal(b, &wr)
+
+	fmt.Printf("Done Waiting %s.\n", wr.Identifier)
+	curTP := tpStatusMap[wr.Identifier]
+
+	stepIndx, err := curTP.GetCurStep()
+
+	if err != nil { //if we're already done.
+		//go ReportCompletion(curTP)
+		return
+	}
+
+	b, _ = json.Marshal(&wr)
+	curTP.Steps[stepIndx].Info = string(b) //save the information about the wait into the step.
+
+	if !strings.EqualFold(wr.Status, "success") { //If we timed out.
+		curTP.CurStatus = "Error"
+		reportError(curTP, errors.New("Problem waiting for restart."))
+		return
+	}
+
+	evaluateNextStep(curTP) //get the next step.
+}
+
+func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("Back from FTP\n")
+	b, _ := ioutil.ReadAll(r.Body)
+
+	var fr ftpRequest
+	json.Unmarshal(b, &fr)
+
+	curTP := tpStatusMap[fr.Identifier]
+
+	stepIndx, err := curTP.GetCurStep()
+
+	if err != nil { //if we're already done.
+		//go ReportCompletion(curTP)
+		return
+	}
+
+	curTP.Steps[stepIndx].Info = string(b) //save the information about the wait into the step.
+
+	if !strings.EqualFold(fr.Status, "success") { //If we timed out.
+		curTP.CurStatus = "Error"
+		reportError(curTP, errors.New("Problem waiting for restart."))
+		return
+	}
+
+	evaluateNextStep(curTP) //get the next step.
+
+	fmt.Printf("Return: %s\n", b)
+}
+
 func main() {
 	var ConfigFileLocation = flag.String("config", "./config.json", "The locaton of the config file.")
 
+	tpStatusMap = make(map[string]tpStatus)
+
 	flag.Parse()
 
-	config := importConfig(*ConfigFileLocation)
+	config = importConfig(*ConfigFileLocation)
 
 	//Build our channels
 	submissionChannel := make(chan tpStatus, 50)
 
 	//build our handlers, to have access to channels they must be wrapped
 
-	startRoomUpdate := buildStartRoomUpdate(submissionChannel)
+	startTPUpdate := buildStartTPUpdate(submissionChannel)
 
 	//Start our functions with the appropriate
-	go run(submissionChannel, config)
+	go startRun(submissionChannel, config)
 
-	goji.Post("/startUpdate/all", startUpdate)
-	goji.Post("/startUpdate/SingleTP/:ipAddress", startTPUpdate)
-	goji.Post("/startUpdate/:roomName", startRoomUpdate)
-	//goji.Post("/returnFromWait", returnFromWaitHandler)
-	//goji.POst("/returnFromFTP", returnFromFTPHandler)
-	goji.Get("/checkStatus/:roomName", checkRoomUpdate)
+	goji.Post("/touchpanels/", startAllTPUpdate)
+	goji.Post("/touchpanels/:ipAddress", startTPUpdate)
+	goji.Put("/touchpanels/", startAllTPUpdate)
+	goji.Put("/touchpanels/:ipAddress", startTPUpdate)
+	goji.Post("/callbacks/afterWait", postWait)
+	goji.Post("/callbacks/afterFTP", afterFTPHandle)
 
 	goji.Serve()
 }
