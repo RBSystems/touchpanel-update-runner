@@ -83,3 +83,30 @@ type IPEntry struct {
 	Port              string
 	IPAddressSitename string
 }
+
+//Equals checks if two iptabels are equivalent
+func (i *IPTable) Equals(compare IPTable) bool {
+	if len(i.Entries) != len(compare.Entries) {
+		return false
+	}
+
+	for r := range i.Entries {
+		if !i.Entries[r].Equals(compare.Entries[r]) {
+			return false
+		}
+	}
+	return true
+}
+
+//Equals compare two IPEntries to see if they're equivalent
+func (e *IPEntry) Equals(compare IPEntry) bool {
+	if e.CipID != compare.CipID ||
+		e.DevID != compare.DevID ||
+		e.IPAddressSitename != compare.IPAddressSitename ||
+		e.Port != compare.Port ||
+		e.Status != compare.Status ||
+		e.Type != compare.Type {
+		return false
+	}
+	return true
+}

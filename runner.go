@@ -21,7 +21,7 @@ func startRun(submissionChannel <-chan tpStatus, config configuration) {
 		curTP.Steps[0].Completed = true
 		//TODO:Validate the IPAddress is a touchpanel
 
-		ipTable, err := getIPTable(curTP.IPAddress, config)
+		ipTable, err := getIPTable(curTP.IPAddress)
 
 		if err != nil {
 			//TODO: Decide what to do here
@@ -129,7 +129,7 @@ func reportError(tp tpStatus, err error) {
 	tp.errorInfo = append(tp.errorInfo, err.Error())
 }
 
-func getIPTable(IPAddress string, config configuration) (IPTable, error) {
+func getIPTable(IPAddress string) (IPTable, error) {
 	var toReturn = IPTable{}
 	//TODO: Make the prompt generic
 	var req = telnetRequest{IPAddress: IPAddress, Command: "iptable", Prompt: "TSW-750>"}

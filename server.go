@@ -144,6 +144,7 @@ func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
 	curTP.Steps[stepIndx].Info = string(b) //save the information about the wait into the step.
 
 	if !strings.EqualFold(fr.Status, "success") { //If we timed out.
+		fmt.Printf("Error: %s \n %s \n", fr.Status, fr.Error)
 		curTP.CurStatus = "Error"
 		reportError(curTP, errors.New("Problem waiting for restart."))
 		return
@@ -179,6 +180,8 @@ func main() {
 	goji.Put("/touchpanels/:ipAddress", startTPUpdate)
 	goji.Post("/callbacks/afterWait", postWait)
 	goji.Post("/callbacks/afterFTP", afterFTPHandle)
+	//	goji.Get("/touchpanels/:ipAddresss/status", getTPStatus)
+	//	goji.Get("/touchpanels/:ipAddresss/status/", getTPStatus)
 
 	goji.Serve()
 }
