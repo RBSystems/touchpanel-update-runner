@@ -1,6 +1,6 @@
 {
   "FTPServiceLocation": "http://avmetrics1.byu.edu:8002/send",
-  "PauseServiceLocaiton": "http://avmetrics1.byu.edu:8003/submit",
+  "PauseServiceLocaiton": "http://localhost:8003/submit",
   "TelnetServiceLocation": "http://avmetrics1.byu.edu:8001/sendCommand",
   "Hostname": "http://10.5.34.69:8000",
   "AttemptLimit": 2

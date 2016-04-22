@@ -19,11 +19,13 @@ func startRun(submissionChannel <-chan tpStatus, config configuration) {
 
 		curTP.Steps = getTPSteps()
 
+		curTP.Attempts = 0 //we haven't tried yet.
+
 		tpStatusMap[curTP.UUID] = curTP
 		//TODO:Check to validate that the current project version and date
 		//validate the need for the update.
-		curTP.Steps[0].Completed = true
 		//TODO:Validate the IPAddress is a touchpanel
+		//ValidateNeed(curTP)
 
 		evaluateNextStep(curTP)
 	}
@@ -88,15 +90,16 @@ func removeOldPUF(ipAddress string, config configuration) error {
 
 func reportError(tp tpStatus, err error) {
 
-	fmt.Printf("%s Reporting a failure...", tp.IPAddress)
+	fmt.Printf("%s Reporting a failure  %s ...\n", tp.IPAddress, err.Error())
 
 	ipTable := false
 
 	//if we want to retry
+	fmt.Printf("%s Attempts: %v, Limit: %v\n", tp.IPAddress, tp.Attempts, config.AttemptLimit)
 	if tp.Attempts < config.AttemptLimit {
 		tp.Attempts++
 
-		fmt.Printf("%s Retring process.", tp.IPAddress)
+		fmt.Printf("%s Retring process.\n", tp.IPAddress)
 		if tp.Steps[1].Completed {
 			ipTable = true
 		}
@@ -107,7 +110,9 @@ func reportError(tp tpStatus, err error) {
 			tp.Steps[1].Completed = true
 		}
 
-		evaluateNextStep(tp)
+		tpStatusMap[tp.UUID] = tp
+
+		startWait(tp, config) //Who knows what state, run a wait on them.
 		return
 	}
 

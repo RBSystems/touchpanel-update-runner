@@ -69,7 +69,7 @@ func evaluateNextStep(curTP tpStatus) {
 		fmt.Printf("%s Done validating.\n", curTP.IPAddress)
 		completeStep(curTP, stepIndx, "Getting IP Table")
 
-		go setIPTable(curTP)
+		go retrieveIPTable(curTP)
 	case 1:
 		fmt.Printf("%s We've gotten IP Table.\n", curTP.IPAddress)
 		completeStep(curTP, stepIndx, "Getting IP Table")
@@ -161,7 +161,7 @@ func loadProject(tp tpStatus) {
 
 	time.Sleep(60 * time.Second) //for some reason we keep getting issues with this. It won't load the project for a while.
 
-	fmt.Printf("%s Sending project load.", tp.IPAddress)
+	fmt.Printf("%s Sending project load.\n", tp.IPAddress)
 	command := "projectload"
 	resp, err := sendCommand(tp, command, true)
 
@@ -195,7 +195,7 @@ func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) {
 	//TODO: Potentially allow for multiple retries.
 	if !validateCommand(str, command) {
 		if tryAgain {
-			fmt.Printf("%s bad output: %s", tp.IPAddress, str)
+			fmt.Printf("%s bad output: %s \n", tp.IPAddress, str)
 			fmt.Printf("%s Retrying command %s ...\n", tp.IPAddress, command)
 			str, err = sendCommand(tp, command, false) //Try again, but don't re
 		} else {
@@ -296,12 +296,12 @@ func sendFTPRequest(tp tpStatus, path string, file string) {
 
 }
 
-func setIPTable(tp tpStatus) {
+func retrieveIPTable(tp tpStatus) {
 	ipTable, err := getIPTable(tp.IPAddress)
 
 	if err != nil {
 		//TODO: Decide what to do here
-		fmt.Printf("%s\n", err.Error())
+		fmt.Printf("%s ERROR: %s\n", tp.IPAddress, err.Error())
 		reportError(tp, err)
 		return
 	}

@@ -167,6 +167,7 @@ func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 	stepIndx, err := curTP.GetCurStep()
 
 	if err != nil { //if we're already done.
+		fmt.Printf("%s Already done error %s\n", wr.IPAddressHostname, err.Error())
 		//go ReportCompletion(curTP)
 		return
 	}
@@ -174,8 +175,11 @@ func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 	b, _ = json.Marshal(&wr)
 	curTP.Steps[stepIndx].Info = string(b) //save the information about the wait into the step.
 
+	fmt.Printf("%s Status %s", wr.IPAddressHostname, wr.Status)
+
 	if !strings.EqualFold(wr.Status, "success") { //If we timed out.
 		curTP.CurrentStatus = "Error"
+		fmt.Printf("%s Error %s\n", wr.IPAddressHostname, wr.Status)
 		reportError(curTP, errors.New("Problem waiting for restart."))
 		return
 	}
