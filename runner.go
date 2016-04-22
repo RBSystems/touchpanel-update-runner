@@ -88,10 +88,27 @@ func removeOldPUF(ipAddress string, config configuration) error {
 
 func reportError(tp tpStatus, err error) {
 
-	fmt.Printf("Reporting a failure...")
+	fmt.Printf("%s Reporting a failure...", tp.IPAddress)
 
+	ipTable := false
+
+	//if we want to retry
 	if tp.Attempts < config.AttemptLimit {
+		tp.Attempts++
 
+		fmt.Printf("%s Retring process.", tp.IPAddress)
+		if tp.Steps[1].Completed {
+			ipTable = true
+		}
+
+		tp.Steps = getTPSteps() //reset the steps
+
+		if ipTable { //if the iptable was already populated.
+			tp.Steps[1].Completed = true
+		}
+
+		evaluateNextStep(tp)
+		return
 	}
 
 	tp.CurrentStatus = "Error"
