@@ -7,6 +7,7 @@ import (
 
 //Struct to represent a single touchpanel.
 type tpStatus struct {
+	CurrentStatus     string //The current status (Step) of the touchpanel
 	UUID              string //UUID that is assigned to each touchpanel
 	RoomName          string //the name of the room associate with this touchpanel
 	Type              string
@@ -14,11 +15,11 @@ type tpStatus struct {
 	Steps             []step    //List of steps in the update process.
 	StartTime         time.Time //Time the update process was started
 	EndTime           time.Time //Time the update process finished, or errored out.
-	CurStatus         string    //The current status (Step) of the touchpanel
 	IPTable           IPTable   //The IPTable associated with this touchpanel.
 	FirmwareVersion   string    //The version of the firmware loaded on the touchpanel
 	ProjectDate       string    //The compile date of the project loaded on the device.
 	Information       modelInformation
+	Attempts          int
 	statusInformation []string
 	errorInfo         []string
 }

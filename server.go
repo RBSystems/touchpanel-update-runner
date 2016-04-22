@@ -39,10 +39,10 @@ func buildStartTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.
 		//TODO: Check job information
 
 		tp := tpStatus{
-			IPAddress: ipaddr,
-			Steps:     getTPSteps(),
-			StartTime: time.Now(),
-			CurStatus: "Submitted"}
+			IPAddress:     ipaddr,
+			Steps:         getTPSteps(),
+			StartTime:     time.Now(),
+			CurrentStatus: "Submitted"}
 
 		//get the Information from the API about the current firmware/Project date
 
@@ -65,12 +65,29 @@ func buildStartTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.
 	}
 }
 
-func startUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
-	//get the IP addresses of all the rooms.
-	fmt.Fprintf(w, "Not implemented.")
+func getTPStatus(c web.C, w http.ResponseWriter, r *http.Request) {
+	ip := c.URLParams["ipAddress"]
+
+	var toReturn []tpStatus
+
+	for _, v := range tpStatusMap {
+		if v.IPAddress == ip {
+			toReturn = append(toReturn, v)
+		}
+	}
+
+	b, err := json.Marshal(toReturn)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "ERROR: %s\n", err.Error())
+	}
+	w.Header().Add("content-type", "application/json")
+	fmt.Fprintf(w, "%s", string(b))
 }
 
-func checkRoomUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
+func startUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
+	//get the IP addresses of all the rooms.
 	fmt.Fprintf(w, "Not implemented.")
 }
 
@@ -103,7 +120,7 @@ func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 	var wr waitRequest
 	json.Unmarshal(b, &wr)
 
-	fmt.Printf("Done Waiting %s.\n", wr.Identifier)
+	fmt.Printf("%s Done Waiting.\n", wr.IPAddressHostname)
 	curTP := tpStatusMap[wr.Identifier]
 
 	stepIndx, err := curTP.GetCurStep()
@@ -117,7 +134,7 @@ func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 	curTP.Steps[stepIndx].Info = string(b) //save the information about the wait into the step.
 
 	if !strings.EqualFold(wr.Status, "success") { //If we timed out.
-		curTP.CurStatus = "Error"
+		curTP.CurrentStatus = "Error"
 		reportError(curTP, errors.New("Problem waiting for restart."))
 		return
 	}
@@ -126,7 +143,7 @@ func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
-	fmt.Printf("Back from FTP\n")
+
 	b, _ := ioutil.ReadAll(r.Body)
 
 	var fr ftpRequest
@@ -134,6 +151,7 @@ func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	curTP := tpStatusMap[fr.Identifier]
 
+	fmt.Printf("%s Back from FTP\n", curTP.IPAddress)
 	stepIndx, err := curTP.GetCurStep()
 
 	if err != nil { //if we're already done.
@@ -144,15 +162,15 @@ func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
 	curTP.Steps[stepIndx].Info = string(b) //save the information about the wait into the step.
 
 	if !strings.EqualFold(fr.Status, "success") { //If we timed out.
-		fmt.Printf("Error: %s \n %s \n", fr.Status, fr.Error)
-		curTP.CurStatus = "Error"
+		fmt.Printf("%s Error: %s \n %s \n", fr.IPAddressHostname, fr.Status, fr.Error)
+		curTP.CurrentStatus = "Error"
 		reportError(curTP, errors.New("Problem waiting for restart."))
 		return
 	}
 
 	evaluateNextStep(curTP) //get the next step.
 
-	fmt.Printf("Return: %s\n", b)
+	//fmt.Printf("%s Return: %s\n", curTP.IPAddress, b)
 }
 
 func main() {
@@ -178,10 +196,12 @@ func main() {
 	goji.Post("/touchpanels/:ipAddress", startTPUpdate)
 	goji.Put("/touchpanels/", startAllTPUpdate)
 	goji.Put("/touchpanels/:ipAddress", startTPUpdate)
+
 	goji.Post("/callbacks/afterWait", postWait)
 	goji.Post("/callbacks/afterFTP", afterFTPHandle)
-	//	goji.Get("/touchpanels/:ipAddresss/status", getTPStatus)
-	//	goji.Get("/touchpanels/:ipAddresss/status/", getTPStatus)
+
+	goji.Get("/touchpanels/:ipAddress/status", getTPStatus)
+	goji.Get("/touchpanels/:ipAddress/status/", getTPStatus)
 
 	goji.Serve()
 }

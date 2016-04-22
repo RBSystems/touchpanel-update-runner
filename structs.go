@@ -8,6 +8,7 @@ type configuration struct {
 	TelnetServiceLocation string
 	PauseServiceLocaiton  string
 	Hostname              string //hostname and port of the server running the touchpanel update - to be used to format the callbacks.
+	AttemptLimit          int    //Number of times to retry a panel before reporting a failure.
 }
 
 type jobInformation struct {
