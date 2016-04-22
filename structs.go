@@ -13,6 +13,7 @@ type configuration struct {
 
 type jobInformation struct {
 	Type                 []string
+	IPAddress            string
 	HDConfiguration      modelInformation //The information for the HDTec panels
 	TecLiteConfiguraiton modelInformation //the information for the TecLite panels
 	FliptopConfiguration modelInformation //The information for the fliptop panels.

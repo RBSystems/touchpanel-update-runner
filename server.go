@@ -35,34 +35,79 @@ func buildStartTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "%s", err.Error())
 		}
+		jobInfo.IPAddress = ipaddr
 
 		//TODO: Check job information
 
-		tp := tpStatus{
-			IPAddress:     ipaddr,
-			Steps:         getTPSteps(),
-			StartTime:     time.Now(),
-			CurrentStatus: "Submitted"}
-
-		//get the Information from the API about the current firmware/Project date
-
-		//-----------------------
-		//Temporary fix - assume everything is HD and we're getting that in from the
-		//Request body.
-		//-----------------------
-		tp.Information = jobInfo.HDConfiguration
-		//-----------------------
-
-		UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("Avengineers.byu.edu"+tp.IPAddress+tp.RoomName))
-		tp.UUID = UUID.String()
-
-		submissionChannel <- tp
+		tp := startTP(submissionChannel, jobInfo)
 
 		bits, _ = json.Marshal(tp)
 		w.Header().Add("Content-Type", "applicaiton/json")
 
 		fmt.Fprintf(w, "%s", bits)
 	}
+}
+
+func buildStartMultTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.ResponseWriter, r *http.Request) {
+	return func(c web.C, w http.ResponseWriter, r *http.Request) {
+		bits, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "%s", err.Error())
+		}
+		var jobInfo []jobInformation
+
+		err = json.Unmarshal(bits, &jobInfo)
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "%s", err.Error())
+		}
+		//TODO: Check job information
+
+		var tpList []tpStatus
+		for j := range jobInfo {
+			if jobInfo[j].IPAddress == "" {
+				tpList = append(tpList, tpStatus{
+					CurrentStatus: "Could not start, no IP Address provided.",
+					ErrorInfo:     []string{"No IP Address provided."}})
+				continue
+			}
+			tp := startTP(submissionChannel, jobInfo[j])
+
+			tpList = append(tpList, tp)
+		}
+
+		bits, _ = json.Marshal(tpList)
+		w.Header().Add("Content-Type", "applicaiton/json")
+
+		fmt.Fprintf(w, "%s", bits)
+	}
+}
+
+func startTP(submissionChannel chan<- tpStatus, jobInfo jobInformation) tpStatus {
+
+	tp := tpStatus{
+		IPAddress:     jobInfo.IPAddress,
+		Steps:         getTPSteps(),
+		StartTime:     time.Now(),
+		CurrentStatus: "Submitted"}
+
+	//get the Information from the API about the current firmware/Project date
+
+	//-----------------------
+	//Temporary fix - assume everything is HD and we're getting that in from the
+	//Request body.
+	//-----------------------
+	tp.Information = jobInfo.HDConfiguration
+	//-----------------------
+
+	UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("Avengineers.byu.edu"+tp.IPAddress+tp.RoomName))
+	tp.UUID = UUID.String()
+
+	submissionChannel <- tp
+
+	return tp
 }
 
 func getTPStatus(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -88,10 +133,6 @@ func getTPStatus(c web.C, w http.ResponseWriter, r *http.Request) {
 
 func startUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	//get the IP addresses of all the rooms.
-	fmt.Fprintf(w, "Not implemented.")
-}
-
-func startAllTPUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Not implemented.")
 }
 
@@ -192,9 +233,11 @@ func main() {
 	//Start our functions with the appropriate
 	go startRun(submissionChannel, config)
 
-	goji.Post("/touchpanels/", startAllTPUpdate)
+	startMultipleTPUpdate := buildStartMultTPUpdate(submissionChannel)
+
+	goji.Post("/touchpanels/", startMultipleTPUpdate)
 	goji.Post("/touchpanels/:ipAddress", startTPUpdate)
-	goji.Put("/touchpanels/", startAllTPUpdate)
+	goji.Put("/touchpanels/", startMultipleTPUpdate)
 	goji.Put("/touchpanels/:ipAddress", startTPUpdate)
 
 	goji.Post("/callbacks/afterWait", postWait)

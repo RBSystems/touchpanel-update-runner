@@ -113,7 +113,7 @@ func reportError(tp tpStatus, err error) {
 
 	tp.CurrentStatus = "Error"
 	tp.EndTime = time.Now()
-	tp.errorInfo = append(tp.errorInfo, err.Error())
+	tp.ErrorInfo = append(tp.ErrorInfo, err.Error())
 }
 
 func getIPTable(IPAddress string) (IPTable, error) {
