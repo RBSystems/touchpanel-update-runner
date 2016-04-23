@@ -17,6 +17,7 @@ import (
 
 var tpStatusMap map[string]tpStatus //global map of tpStatus to allow for status updates.
 var config configuration            //global configuration data, readonly.
+var updateChannel chan tpStatus
 
 func buildStartTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.ResponseWriter, r *http.Request) {
 	return func(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -85,12 +86,22 @@ func buildStartMultTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w h
 	}
 }
 
+//Just update, so we can get around weird issues.
+func updater() {
+	for true {
+		tpToUpdate := <-updateChannel
+		fmt.Printf("%s updating status.", tpToUpdate.IPAddress)
+		tpStatusMap[tpToUpdate.UUID] = tpToUpdate
+	}
+}
+
 func startTP(submissionChannel chan<- tpStatus, jobInfo jobInformation) tpStatus {
 
 	tp := tpStatus{
 		IPAddress:     jobInfo.IPAddress,
 		Steps:         getTPSteps(),
 		StartTime:     time.Now(),
+		Type:          jobInfo.Type[0],
 		CurrentStatus: "Submitted"}
 
 	//get the Information from the API about the current firmware/Project date
@@ -105,7 +116,9 @@ func startTP(submissionChannel chan<- tpStatus, jobInfo jobInformation) tpStatus
 	UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("Avengineers.byu.edu"+tp.IPAddress+tp.RoomName))
 	tp.UUID = UUID.String()
 
-	submissionChannel <- tp
+	fmt.Printf("%s Starting.\n", tp.IPAddress)
+
+	go startRun(tp)
 
 	return tp
 }
@@ -152,6 +165,40 @@ func importConfig(configPath string) configuration {
 	return configurationData
 }
 
+func getAllTPStatus(c web.C, w http.ResponseWriter, r *http.Request) {
+	var info []tpStatus
+
+	for _, v := range tpStatusMap {
+		info = append(info, v)
+	}
+
+	b, _ := json.Marshal(&info)
+
+	w.Header().Add("Content-Type", "application/json")
+	fmt.Fprintf(w, "%s", string(b))
+}
+
+func getAllTPStatusConcise(c web.C, w http.ResponseWriter, r *http.Request) {
+	var info []string
+	info = append(info, "IP\tStatus\tError\n")
+
+	for _, v := range tpStatusMap {
+		if len(v.ErrorInfo) > 0 {
+			str := v.IPAddress + "\t" + v.CurrentStatus + "\t" + v.ErrorInfo[0]
+			info = append(info, str)
+		} else {
+			str := v.IPAddress + "\t" + v.CurrentStatus + "\t" + ""
+			info = append(info, str)
+		}
+
+	}
+
+	b, _ := json.Marshal(&info)
+
+	w.Header().Add("Content-Type", "application/json")
+	fmt.Fprintf(w, "%s", string(b))
+}
+
 func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -163,6 +210,10 @@ func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	fmt.Printf("%s Done Waiting.\n", wr.IPAddressHostname)
 	curTP := tpStatusMap[wr.Identifier]
+
+	if curTP.UUID == "" {
+		fmt.Printf("%s UUID not in map.\n", wr.IPAddressHostname)
+	}
 
 	stepIndx, err := curTP.GetCurStep()
 
@@ -229,13 +280,13 @@ func main() {
 
 	//Build our channels
 	submissionChannel := make(chan tpStatus, 50)
+	updateChannel = make(chan tpStatus, 150)
+
+	go updater()
 
 	//build our handlers, to have access to channels they must be wrapped
 
 	startTPUpdate := buildStartTPUpdate(submissionChannel)
-
-	//Start our functions with the appropriate
-	go startRun(submissionChannel, config)
 
 	startMultipleTPUpdate := buildStartMultTPUpdate(submissionChannel)
 
@@ -249,6 +300,9 @@ func main() {
 
 	goji.Get("/touchpanels/:ipAddress/status", getTPStatus)
 	goji.Get("/touchpanels/:ipAddress/status/", getTPStatus)
+
+	goji.Get("/touchpanels/status", getAllTPStatus)
+	goji.Get("/touchpanels/status/Concise", getAllTPStatusConcise)
 
 	goji.Serve()
 }

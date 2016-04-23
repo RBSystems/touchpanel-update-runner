@@ -66,13 +66,19 @@ func evaluateNextStep(curTP tpStatus) {
 
 	switch stepIndx { //determine where to go next.
 	case 0:
+		if !validateNeed(curTP) {
+			fmt.Printf("%s Not needed\n", curTP.IPAddress)
+			curTP.CurrentStatus = "Not needed."
+			updateChannel <- curTP
+			return
+		}
 		fmt.Printf("%s Done validating.\n", curTP.IPAddress)
 		completeStep(curTP, stepIndx, "Getting IP Table")
 
 		go retrieveIPTable(curTP)
 	case 1:
 		fmt.Printf("%s We've gotten IP Table.\n", curTP.IPAddress)
-		completeStep(curTP, stepIndx, "Getting IP Table")
+		completeStep(curTP, stepIndx, "Remove Firmware")
 
 		go removeOldFirmware(curTP)
 	case 2:
@@ -216,7 +222,8 @@ func validateCommand(output string, command string) bool {
 	//List of responses that always denote a retry.
 	var generalBad = []string{
 		"Bad or Incomplete Command",
-		"Move Failed"}
+		"Move Failed",
+		"i/o timeout"}
 
 	for i := range generalBad {
 		if strings.Contains(output, generalBad[i]) {
@@ -258,7 +265,8 @@ func moveProject(tp tpStatus) {
 func completeStep(tp tpStatus, step int, curStatus string) {
 	tp.Steps[step].Completed = true
 	tp.CurrentStatus = curStatus
-	tpStatusMap[tp.UUID] = tp
+
+	updateChannel <- tp
 }
 
 func copyProject(tp tpStatus) {
@@ -337,6 +345,29 @@ func removeOldFirmware(tp tpStatus) {
 	evaluateNextStep(tp)
 }
 
+func getPrompt(tp tpStatus) (string, error) {
+	var req = telnetRequest{IPAddress: tp.IPAddress, Command: "hostname"}
+	bits, _ := json.Marshal(req)
+
+	resp, err := http.Post(config.TelnetServiceLocation+"/getPrompt", "application/json", bytes.NewBuffer(bits))
+
+	if err != nil {
+		return "", err
+	}
+
+	b, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		return "", err
+	}
+
+	respValue := telnetRequest{}
+
+	err = json.Unmarshal(b, &respValue)
+
+	return respValue.Prompt, nil
+}
+
 func initializeTP(tp tpStatus) {
 	err := initialize(tp.IPAddress, config)
 
@@ -365,4 +396,20 @@ func validateTP(tp tpStatus) {
 
 	}
 
+}
+
+func validateNeed(tp tpStatus) bool {
+	prompt, err := getPrompt(tp)
+
+	fmt.Printf("%s Prompt Returned was: %s \n", tp.IPAddress, prompt)
+
+	if err != nil {
+		return false
+	}
+
+	if tp.Type == "TECHD" && strings.Contains(prompt, "TSW-750>") {
+		return true
+	}
+
+	return false
 }

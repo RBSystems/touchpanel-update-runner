@@ -12,23 +12,21 @@ import (
 )
 
 //Starts the TP Update process.
-func startRun(submissionChannel <-chan tpStatus, config configuration) {
-	for true {
-		curTP := <-submissionChannel
-		curTP.Attempts++
+func startRun(curTP tpStatus) {
+	curTP.Attempts++
 
-		curTP.Steps = getTPSteps()
+	curTP.Steps = getTPSteps()
 
-		curTP.Attempts = 0 //we haven't tried yet.
+	curTP.Attempts = 0 //we haven't tried yet.
 
-		tpStatusMap[curTP.UUID] = curTP
-		//TODO:Check to validate that the current project version and date
-		//validate the need for the update.
-		//TODO:Validate the IPAddress is a touchpanel
-		//ValidateNeed(curTP)
 
-		evaluateNextStep(curTP)
-	}
+updateChannel <- curTP
+	//TODO:Check to validate that the current project version and date
+	//validate the need for the update.
+	//TODO:Validate the IPAddress is a touchpanel
+	//ValidateNeed(curTP)
+
+	evaluateNextStep(curTP)
 }
 
 func startWait(curTP tpStatus, config configuration) error {
@@ -110,7 +108,8 @@ func reportError(tp tpStatus, err error) {
 			tp.Steps[1].Completed = true
 		}
 
-		tpStatusMap[tp.UUID] = tp
+
+updateChannel <- tp
 
 		startWait(tp, config) //Who knows what state, run a wait on them.
 		return
