@@ -19,8 +19,7 @@ func startRun(curTP tpStatus) {
 
 	curTP.Attempts = 0 //we haven't tried yet.
 
-
-updateChannel <- curTP
+	updateChannel <- curTP
 	//TODO:Check to validate that the current project version and date
 	//validate the need for the update.
 	//TODO:Validate the IPAddress is a touchpanel
@@ -98,18 +97,17 @@ func reportError(tp tpStatus, err error) {
 		tp.Attempts++
 
 		fmt.Printf("%s Retring process.\n", tp.IPAddress)
-		if tp.Steps[1].Completed {
+		if tp.Steps[0].Completed {
 			ipTable = true
 		}
 
 		tp.Steps = getTPSteps() //reset the steps
 
 		if ipTable { //if the iptable was already populated.
-			tp.Steps[1].Completed = true
+			tp.Steps[0].Completed = true
 		}
 
-
-updateChannel <- tp
+		updateChannel <- tp
 
 		startWait(tp, config) //Who knows what state, run a wait on them.
 		return
@@ -123,7 +121,7 @@ updateChannel <- tp
 func getIPTable(IPAddress string) (IPTable, error) {
 	var toReturn = IPTable{}
 	//TODO: Make the prompt generic
-	var req = telnetRequest{IPAddress: IPAddress, Command: "iptable", Prompt: "TSW-750>"}
+	var req = telnetRequest{IPAddress: IPAddress, Command: "iptable"}
 
 	bits, _ := json.Marshal(req)
 
@@ -149,4 +147,8 @@ func getIPTable(IPAddress string) (IPTable, error) {
 	}
 
 	return toReturn, nil
+}
+
+func sendToKibana(tp tpStatus) {
+
 }

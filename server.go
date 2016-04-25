@@ -86,11 +86,10 @@ func buildStartMultTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w h
 	}
 }
 
-//Just update, so we can get around weird issues.
+//Just update, so we can get around concurrent map write issues.
 func updater() {
 	for true {
 		tpToUpdate := <-updateChannel
-		fmt.Printf("%s updating status.", tpToUpdate.IPAddress)
 		tpStatusMap[tpToUpdate.UUID] = tpToUpdate
 	}
 }
@@ -226,7 +225,7 @@ func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 	b, _ = json.Marshal(&wr)
 	curTP.Steps[stepIndx].Info = string(b) //save the information about the wait into the step.
 
-	fmt.Printf("%s Status %s", wr.IPAddressHostname, wr.Status)
+	fmt.Printf("%s Wait status %s\n", wr.IPAddressHostname, wr.Status)
 
 	if !strings.EqualFold(wr.Status, "success") { //If we timed out.
 		curTP.CurrentStatus = "Error"
@@ -269,6 +268,23 @@ func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
 	//fmt.Printf("%s Return: %s\n", curTP.IPAddress, b)
 }
 
+func test(c web.C, w http.ResponseWriter, r *http.Request) {
+	tp := tpStatus{IPAddress: c.URLParams["ipAddress"]}
+	tp.Steps = getTPSteps()
+	tp.ProjectDate = "March 29, 2016 8:27:32"
+	tp.FirmwareVersion = "1.501.0013"
+
+	table, _ := getIPTable(tp.IPAddress)
+
+	tp.IPTable = table
+
+	needed, str := validateNeed(tp)
+
+	fmt.Printf("%s needed %v : %s\n", tp.IPAddress, needed, str)
+
+	fmt.Fprintf(w, "Success!")
+}
+
 func main() {
 	var ConfigFileLocation = flag.String("config", "./config.json", "The locaton of the config file.")
 
@@ -302,7 +318,11 @@ func main() {
 	goji.Get("/touchpanels/:ipAddress/status/", getTPStatus)
 
 	goji.Get("/touchpanels/status", getAllTPStatus)
-	goji.Get("/touchpanels/status/Concise", getAllTPStatusConcise)
+	goji.Get("/touchpanels/status/", getAllTPStatus)
+	goji.Get("/touchpanels/status/concise", getAllTPStatusConcise)
+	goji.Get("/touchpanels/status/concise/", getAllTPStatusConcise)
+
+	goji.Get("/touchpanels/test/:ipAddress", test)
 
 	goji.Serve()
 }

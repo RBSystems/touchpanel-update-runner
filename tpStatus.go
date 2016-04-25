@@ -19,7 +19,8 @@ type tpStatus struct {
 	FirmwareVersion string    //The version of the firmware loaded on the touchpanel
 	ProjectDate     string    //The compile date of the project loaded on the device.
 	Information     modelInformation
-	Attempts        int
+	Attempts        int  //number of times to attempt the update.
+	Force           bool //optional flag to bypass the validation and force the update.
 	ErrorInfo       []string
 }
 

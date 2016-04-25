@@ -3,5 +3,6 @@
   "PauseServiceLocaiton": "http://localhost:8003/submit",
   "TelnetServiceLocation": "http://localhost:8001/sendCommand",
   "Hostname": "http://10.5.34.69:8000",
-  "AttemptLimit": 2
+  "ESAddress": "",
+  "AttemptLimit": 0
 }

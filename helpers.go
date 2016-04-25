@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -31,8 +32,8 @@ func getTPSteps() []step {
 func getTPStepNames() []string {
 	var n []string
 	n = append(n,
-		"CheckCurrentVersion/Date", //0
-		"Get IPTable",              //1
+		"Get IPTable",              //0
+		"CheckCurrentVersion/Date", //1
 		"Remove Old Firmware",      //2
 		"Initialize",               //3
 		"Copy Firmware",            //4
@@ -66,20 +67,20 @@ func evaluateNextStep(curTP tpStatus) {
 
 	switch stepIndx { //determine where to go next.
 	case 0:
-		if !validateNeed(curTP) {
-			fmt.Printf("%s Not needed\n", curTP.IPAddress)
-			curTP.CurrentStatus = "Not needed."
-			updateChannel <- curTP
-			return
-		}
-		fmt.Printf("%s Done validating.\n", curTP.IPAddress)
-		completeStep(curTP, stepIndx, "Getting IP Table")
+		completeStep(curTP, stepIndx, "Validating")
 
 		go retrieveIPTable(curTP)
 	case 1:
 		fmt.Printf("%s We've gotten IP Table.\n", curTP.IPAddress)
-		completeStep(curTP, stepIndx, "Remove Firmware")
-
+		need, str := validateNeed(curTP)
+		if !need {
+			fmt.Printf("%s Not needed: %s\n", curTP.IPAddress, str)
+			curTP.CurrentStatus = "Not needed: " + str
+			updateChannel <- curTP
+			return
+		}
+		fmt.Printf("%s Done validating.\n", curTP.IPAddress)
+		completeStep(curTP, stepIndx, "Removing old Firmware")
 		go removeOldFirmware(curTP)
 	case 2:
 		fmt.Printf("%s Old Firmware removed.\n", curTP.IPAddress)
@@ -122,6 +123,7 @@ func evaluateNextStep(curTP tpStatus) {
 		fmt.Printf("%s IPTable loaded\n", curTP.IPAddress)
 		completeStep(curTP, stepIndx, "Validating")
 
+		go validateTP(curTP)
 	default:
 	}
 }
@@ -313,7 +315,8 @@ func retrieveIPTable(tp tpStatus) {
 		reportError(tp, err)
 		return
 	}
-	fmt.Printf("%s Got the IPtable: %s\n", tp.IPAddress, ipTable)
+	tp.IPTable = ipTable
+	//fmt.Printf("%s Got the IPtable: %s\n", tp.IPAddress, ipTable)
 	evaluateNextStep(tp)
 }
 
@@ -389,27 +392,169 @@ func initializeTP(tp tpStatus) {
 }
 
 func validateTP(tp tpStatus) {
+	m, err := doValidation(tp)
+
+	if err == nil {
+		tp.CurrentStatus = "Success."
+		fmt.Printf("%s Success!\n", tp.IPAddress)
+		updateChannel <- tp
+		//reportSuccess(tp) //TODO: send success to ELK
+		return
+	}
+
+	// if the error was just IPTable try it again.
+	if m["iptable"] == false && m["firmare"] == true && m["project"] == true {
+		fmt.Printf("%s iptable not loaded\n", tp.IPAddress)
+
+		if tp.Steps[10].Attempts < 2 {
+			tp.Steps[10].Attempts++
+			tp.Steps[9].Completed = false
+
+			startWait(tp, config)
+			return
+		}
+	}
+
+	reportError(tp, err)
+}
+
+func doValidation(tp tpStatus) (map[string]bool, error) {
+	toReturn := make(map[string]bool)
+	needed := false
 	//we need to validate IPTable, Firmware, and Project
+	projVer, err := getProjectVersion(tp, 0)
+
+	if err != nil || !strings.EqualFold(projVer.ProjectDate, tp.Information.ProjectDate) {
+		fmt.Printf("%s Return Ver: %s\n", tp.IPAddress, projVer.ProjectDate)
+		fmt.Printf("%s Needed Ver: %s\n", tp.IPAddress, tp.ProjectDate)
+		if err != nil {
+			fmt.Printf("%s ERROR: %s\n", tp.IPAddress, err.Error())
+		}
+		toReturn["project"] = false
+		needed = true
+	} else {
+		toReturn["project"] = true
+	}
+
+	firmware, err := getFirmwareVersion(tp)
+	if err != nil || firmware != tp.Information.FirmwareVersion {
+		toReturn["firmware"] = false
+		needed = true
+	} else {
+		toReturn["firmware"] = true
+	}
+
 	ipTable, _ := getIPTable(tp.IPAddress)
 
-	if ipTable.Equals(tp.IPTable) {
+	fmt.Printf("%s IPTABLE: %s\n", tp.IPAddress, ipTable)
 
+	if !ipTable.Equals(tp.IPTable) {
+		toReturn["iptable"] = false
+		needed = true
+	} else {
+		toReturn["iptable"] = true
 	}
+
+	if needed {
+		return toReturn, errors.New("Needed update")
+	}
+
+	return toReturn, nil
 
 }
 
-func validateNeed(tp tpStatus) bool {
+func getProjectVersion(tp tpStatus, retry int) (modelInformation, error) {
+	fmt.Printf("%s Getting project info...\n", tp.IPAddress)
+	info := modelInformation{}
+
+	rawData, err := sendCommand(tp, "xget ~.LocalInfo.vtpage", true)
+
+	if err != nil {
+		return info, err
+	}
+
+	//We've tried to retrieve the vtpage at the same time as someone else. Wait for
+	//them to finish and try again.
+	if strings.Contains(rawData, ":Could not") && retry < 2 {
+		fmt.Printf("%s Could not get project information, trying again in 45 seconds...\n", tp.IPAddress)
+		time.Sleep(45 * time.Second)
+		return getProjectVersion(tp, retry+1)
+	}
+
+	re := regexp.MustCompile("VTZ=(.*?)\\nDate=(.*?)\\n") //we just want project title and date
+
+	matches := re.FindStringSubmatch(string(rawData))
+
+	if matches == nil {
+		fmt.Printf("%s %s\n", tp.IPAddress, rawData)
+		return info, errors.New("Bad data returned.")
+	}
+
+	fmt.Printf("%s Project Info: %+v\n", tp.IPAddress, matches)
+
+	info.ProjectLocation = strings.TrimSpace(matches[1])
+	info.ProjectDate = strings.TrimSpace(matches[2])
+
+	fmt.Printf("%s ProjectDate:%s  ProjectName: %s\n", tp.IPAddress, info.ProjectDate, info.ProjectLocation)
+
+	return info, nil
+}
+
+func getFirmwareVersion(tp tpStatus) (string, error) {
+	fmt.Printf("%s Getting Firmware Version\n", tp.IPAddress)
+
+	data, err := sendCommand(tp, "ver", true)
+
+	if err != nil {
+		return "", err
+	}
+
+	re := regexp.MustCompile("\\[v(.*?)\\s")
+
+	match := re.FindStringSubmatch(string(data))
+
+	if match == nil {
+		return "", errors.New("Bad data returned.")
+	}
+
+	fmt.Printf("%s Firmware Version: %s\n", tp.IPAddress, match[1])
+
+	return match[1], nil
+}
+
+func validateNeed(tp tpStatus) (bool, string) {
 	prompt, err := getPrompt(tp)
 
 	fmt.Printf("%s Prompt Returned was: %s \n", tp.IPAddress, prompt)
 
 	if err != nil {
-		return false
+		return false, "Couldn't get a prompt."
 	}
 
-	if tp.Type == "TECHD" && strings.Contains(prompt, "TSW-750>") {
-		return true
+	if tp.Type != "TECHD" || !strings.Contains(prompt, "TSW-750>") {
+		return false, "Not a touchpanel. Prompt received: " + prompt
 	}
 
-	return false
+	if tp.Force {
+		fmt.Printf("%s Forced update.\n", tp.IPAddress)
+		return true, ""
+	}
+
+	m, err := doValidation(tp)
+
+	if err != nil {
+		fmt.Printf("%s Validation error: %s\n", tp.IPAddress, err.Error())
+	}
+
+	if err == nil {
+		return false, "Already has firmware and project."
+	}
+
+	for k, v := range m {
+		if !v {
+			fmt.Printf("%s needs %s\n", tp.IPAddress, k)
+		}
+	}
+
+	return true, ""
 }
