@@ -19,6 +19,19 @@ func startRun(curTP tpStatus) {
 
 	curTP.Attempts = 0 //we haven't tried yet.
 
+	//get the hostname
+
+	response, err := sendCommand(curTP, "hostname", true)
+
+	if err != nil {
+		fmt.Printf("Could not retrieve hostname.")
+	}
+	if strings.Contains(response, "Host Name:") {
+		response = strings.Split(response, "Host Name:")[1]
+	}
+
+	curTP.Hostname = strings.TrimSpace(response)
+
 	updateChannel <- curTP
 	//TODO:Check to validate that the current project version and date
 	//validate the need for the update.
@@ -51,6 +64,8 @@ func startWait(curTP tpStatus, config configuration) error {
 
 	body, err := ioutil.ReadAll(resp.Body)
 
+	defer resp.Body.Close()
+
 	if !strings.Contains(string(body), "Added to queue") {
 		return errors.New(string(body))
 	}
@@ -63,8 +78,8 @@ func initialize(ipAddress string, config configuration) error {
 	var req = telnetRequest{IPAddress: ipAddress, Command: "initialize", Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
-	_, err := http.Post(config.TelnetServiceLocation+"Confirm", "application/json", bytes.NewBuffer(bits))
-
+	resp, err := http.Post(config.TelnetServiceLocation+"Confirm", "application/json", bytes.NewBuffer(bits))
+	defer resp.Body.Close()
 	if err != nil {
 		return err
 	}
@@ -76,13 +91,35 @@ func removeOldPUF(ipAddress string, config configuration) error {
 	var req = telnetRequest{IPAddress: ipAddress, Command: "cd /ROMDISK/user/sytem\nerase *.puf", Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
-	_, err := http.Post(config.TelnetServiceLocation, "application/json", bytes.NewBuffer(bits))
-
+	resp, err := http.Post(config.TelnetServiceLocation, "application/json", bytes.NewBuffer(bits))
+	defer resp.Body.Close()
 	if err != nil {
 		return err
 	}
 
+	defer resp.Body.Close()
+
 	return nil
+}
+
+func reportNotNeeded(tp tpStatus, status string) {
+	fmt.Printf("%s Not needed\n", tp.IPAddress)
+
+	tp.CurrentStatus = status
+	tp.EndTime = time.Now()
+	updateChannel <- tp
+
+	sendToELK(tp, 0)
+}
+
+func reportSuccess(tp tpStatus) {
+	fmt.Printf("%s Success!\n", tp.IPAddress)
+
+	tp.CurrentStatus = "Success"
+	tp.EndTime = time.Now()
+	updateChannel <- tp
+
+	sendToELK(tp, 0)
 }
 
 func reportError(tp tpStatus, err error) {
@@ -116,6 +153,9 @@ func reportError(tp tpStatus, err error) {
 	tp.CurrentStatus = "Error"
 	tp.EndTime = time.Now()
 	tp.ErrorInfo = append(tp.ErrorInfo, err.Error())
+	updateChannel <- tp
+
+	sendToELK(tp, 0)
 }
 
 func getIPTable(IPAddress string) (IPTable, error) {
@@ -149,6 +189,29 @@ func getIPTable(IPAddress string) (IPTable, error) {
 	return toReturn, nil
 }
 
-func sendToKibana(tp tpStatus) {
+func sendToELK(tp tpStatus, retry int) {
+	b, _ := json.Marshal(&tp)
 
+	resp, err := http.Post(config.ESAddress+tp.Batch+"/"+tp.Hostname, "application/json", bytes.NewBuffer(b))
+
+	if err != nil {
+		if retry < 2 {
+			fmt.Printf("%s error posting to ELK %s. Trying again.\n", tp.IPAddress, err.Error())
+			sendToELK(tp, retry+1)
+			return
+		}
+		fmt.Printf("%s Could not report to ELK. %s \n", tp.IPAddress, err.Error())
+	} else if resp.StatusCode > 299 || resp.StatusCode < 200 {
+		fmt.Printf("%s Status Code: %v\n", tp.IPAddress, resp.StatusCode)
+		b, _ := ioutil.ReadAll(resp.Body)
+		if retry < 2 {
+			fmt.Printf("%s error posting to ELK %s. Trying again.\n", tp.IPAddress, string(b))
+			sendToELK(tp, retry+1)
+			return
+		}
+		fmt.Printf("%s Could not report to ELK. %s \n", tp.IPAddress, string(b))
+		return
+	}
+	defer resp.Body.Close()
+	fmt.Printf("%s Reported to ELK.\n", tp.IPAddress)
 }

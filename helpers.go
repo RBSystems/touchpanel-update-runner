@@ -75,8 +75,7 @@ func evaluateNextStep(curTP tpStatus) {
 		need, str := validateNeed(curTP)
 		if !need {
 			fmt.Printf("%s Not needed: %s\n", curTP.IPAddress, str)
-			curTP.CurrentStatus = "Not needed: " + str
-			updateChannel <- curTP
+			reportNotNeeded(curTP, "Not Needed: "+str)
 			return
 		}
 		fmt.Printf("%s Done validating.\n", curTP.IPAddress)
@@ -197,7 +196,7 @@ func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
+	defer resp.Body.Close()
 	str := string(b)
 
 	//TODO: Potentially allow for multiple retries.
@@ -301,6 +300,7 @@ func sendFTPRequest(tp tpStatus, path string, file string) {
 	if err != nil {
 		reportError(tp, err)
 	}
+	defer resp.Body.Close()
 	b, _ = ioutil.ReadAll(resp.Body)
 	fmt.Printf("%s Submission response: %s\n", tp.IPAddress, b)
 
@@ -324,7 +324,6 @@ func updateFirmware(tp tpStatus) {
 	fmt.Printf("%s Firmware Update \n", tp.IPAddress)
 
 	resp, err := sendCommand(tp, "puf", true)
-
 	if err != nil {
 		reportError(tp, err)
 		return
@@ -359,7 +358,7 @@ func getPrompt(tp tpStatus) (string, error) {
 	}
 
 	b, err := ioutil.ReadAll(resp.Body)
-
+	defer resp.Body.Close()
 	if err != nil {
 		return "", err
 	}
@@ -395,15 +394,12 @@ func validateTP(tp tpStatus) {
 	m, err := doValidation(tp)
 
 	if err == nil {
-		tp.CurrentStatus = "Success."
-		fmt.Printf("%s Success!\n", tp.IPAddress)
-		updateChannel <- tp
-		//reportSuccess(tp) //TODO: send success to ELK
+		reportSuccess(tp)
 		return
 	}
 
 	// if the error was just IPTable try it again.
-	if m["iptable"] == false && m["firmare"] == true && m["project"] == true {
+	if m["iptable"] == false && m["firmware"] == true && m["project"] == true {
 		fmt.Printf("%s iptable not loaded\n", tp.IPAddress)
 
 		if tp.Steps[10].Attempts < 2 {
@@ -414,8 +410,14 @@ func validateTP(tp tpStatus) {
 			return
 		}
 	}
+	errStr := "Validation failed: "
+	for k, v := range m {
+		if v == false {
+			errStr = errStr + ": " + k + " "
+		}
+	}
 
-	reportError(tp, err)
+	reportError(tp, errors.New(errStr))
 }
 
 func doValidation(tp tpStatus) (map[string]bool, error) {

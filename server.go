@@ -22,7 +22,7 @@ var updateChannel chan tpStatus
 func buildStartTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.ResponseWriter, r *http.Request) {
 	return func(c web.C, w http.ResponseWriter, r *http.Request) {
 		ipaddr := c.URLParams["ipAddress"]
-
+		batch := time.Now().Format(time.RFC3339)
 		bits, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -37,6 +37,7 @@ func buildStartTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.
 			fmt.Fprintf(w, "%s", err.Error())
 		}
 		jobInfo.IPAddress = ipaddr
+		jobInfo.Batch = batch
 
 		//TODO: Check job information
 
@@ -56,9 +57,9 @@ func buildStartMultTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w h
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "%s", err.Error())
 		}
-		var jobInfo []jobInformation
+		var info multiJobInformation
 
-		err = json.Unmarshal(bits, &jobInfo)
+		err = json.Unmarshal(bits, &info)
 
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -66,15 +67,22 @@ func buildStartMultTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w h
 		}
 		//TODO: Check job information
 
+		batch := time.Now().Format(time.RFC3339)
+
 		var tpList []tpStatus
-		for j := range jobInfo {
-			if jobInfo[j].IPAddress == "" {
+		for j := range info.Info {
+			if info.Info[j].IPAddress == "" {
 				tpList = append(tpList, tpStatus{
 					CurrentStatus: "Could not start, no IP Address provided.",
 					ErrorInfo:     []string{"No IP Address provided."}})
 				continue
 			}
-			tp := startTP(submissionChannel, jobInfo[j])
+			info.Info[j].HDConfiguration = info.HDConfiguration
+			info.Info[j].TecLiteConfiguraiton = info.TecLiteConfiguraiton
+			info.Info[j].FliptopConfiguration = info.FliptopConfiguration
+			info.Info[j].Batch = batch
+
+			tp := startTP(submissionChannel, info.Info[j])
 
 			tpList = append(tpList, tp)
 		}
@@ -100,7 +108,9 @@ func startTP(submissionChannel chan<- tpStatus, jobInfo jobInformation) tpStatus
 		IPAddress:     jobInfo.IPAddress,
 		Steps:         getTPSteps(),
 		StartTime:     time.Now(),
+		Force:         jobInfo.Force,
 		Type:          jobInfo.Type[0],
+		Batch:         jobInfo.Batch, //batch is for uploading to elastic search
 		CurrentStatus: "Submitted"}
 
 	//get the Information from the API about the current firmware/Project date
@@ -223,7 +233,7 @@ func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	b, _ = json.Marshal(&wr)
-	curTP.Steps[stepIndx].Info = string(b) //save the information about the wait into the step.
+	curTP.Steps[stepIndx].Info = string(b) + "\n" + curTP.Steps[stepIndx].Info //save the information about the wait into the step.
 
 	fmt.Printf("%s Wait status %s\n", wr.IPAddressHostname, wr.Status)
 
@@ -263,26 +273,12 @@ func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	evaluateNextStep(curTP) //get the next step.
+	startWait(curTP, config)
 
 	//fmt.Printf("%s Return: %s\n", curTP.IPAddress, b)
 }
 
 func test(c web.C, w http.ResponseWriter, r *http.Request) {
-	tp := tpStatus{IPAddress: c.URLParams["ipAddress"]}
-	tp.Steps = getTPSteps()
-	tp.ProjectDate = "March 29, 2016 8:27:32"
-	tp.FirmwareVersion = "1.501.0013"
-
-	table, _ := getIPTable(tp.IPAddress)
-
-	tp.IPTable = table
-
-	needed, str := validateNeed(tp)
-
-	fmt.Printf("%s needed %v : %s\n", tp.IPAddress, needed, str)
-
-	fmt.Fprintf(w, "Success!")
 }
 
 func main() {
@@ -322,7 +318,7 @@ func main() {
 	goji.Get("/touchpanels/status/concise", getAllTPStatusConcise)
 	goji.Get("/touchpanels/status/concise/", getAllTPStatusConcise)
 
-	goji.Get("/touchpanels/test/:ipAddress", test)
+	goji.Post("/touchpanels/test/", test)
 
 	goji.Serve()
 }
