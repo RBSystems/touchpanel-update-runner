@@ -11,15 +11,15 @@ import (
 	"time"
 )
 
-//Starts the TP Update process.
+// Starts the TP Update process.
 func startRun(curTP tpStatus) {
 	curTP.Attempts++
 
 	curTP.Steps = getTPSteps()
 
-	curTP.Attempts = 0 //we haven't tried yet.
+	curTP.Attempts = 0 // We haven't tried yet
 
-	//get the hostname
+	// Get the hostname
 
 	response, err := sendCommand(curTP, "hostname", true)
 
@@ -33,10 +33,6 @@ func startRun(curTP tpStatus) {
 	curTP.Hostname = strings.TrimSpace(response)
 
 	updateChannel <- curTP
-	//TODO:Check to validate that the current project version and date
-	//validate the need for the update.
-	//TODO:Validate the IPAddress is a touchpanel
-	//ValidateNeed(curTP)
 
 	evaluateNextStep(curTP)
 }

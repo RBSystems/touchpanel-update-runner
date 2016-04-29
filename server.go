@@ -48,7 +48,7 @@ func buildStartTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.
 		tp := startTP(jobInfo)
 
 		bits, _ = json.Marshal(tp)
-		w.Header().Add("Content-Type", "applicaiton/json")
+		w.Header().Add("Content-Type", "application/json")
 
 		fmt.Fprintf(w, "%s", bits)
 	}
@@ -92,7 +92,7 @@ func buildStartMultTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w h
 		}
 
 		bits, _ = json.Marshal(tpList)
-		w.Header().Add("Content-Type", "applicaiton/json")
+		w.Header().Add("Content-Type", "application/json")
 
 		fmt.Fprintf(w, "%s", bits)
 	}
@@ -107,7 +107,6 @@ func updater() {
 }
 
 func startTP(jobInfo jobInformation) tpStatus {
-
 	tp := buildTP(jobInfo)
 	fmt.Printf("%s Starting.\n", tp.IPAddress)
 	go startRun(tp)
@@ -122,7 +121,8 @@ func buildTP(jobInfo jobInformation) tpStatus {
 		Force:         jobInfo.Force,
 		Type:          jobInfo.Type[0],
 		Batch:         jobInfo.Batch, //batch is for uploading to elastic search
-		CurrentStatus: "Submitted"}
+		CurrentStatus: "Submitted",
+	}
 
 	//get the Information from the API about the current firmware/Project date
 
@@ -133,7 +133,7 @@ func buildTP(jobInfo jobInformation) tpStatus {
 	tp.Information = jobInfo.HDConfiguration
 	//-----------------------
 
-	UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("Avengineers.byu.edu"+tp.IPAddress+tp.RoomName))
+	UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("avengineers.byu.edu"+tp.IPAddress+tp.RoomName))
 	tp.UUID = UUID.String()
 
 	return tp

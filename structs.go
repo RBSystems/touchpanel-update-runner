@@ -13,7 +13,7 @@ type configuration struct {
 }
 
 type jobInformation struct {
-	Type                 []string
+	Type                 []string // HDTec, TecLite, fliptop
 	IPAddress            string
 	Force                bool
 	Batch                string

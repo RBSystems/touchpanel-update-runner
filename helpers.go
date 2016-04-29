@@ -78,6 +78,7 @@ func evaluateNextStep(curTP tpStatus) {
 			reportNotNeeded(curTP, "Not Needed: "+str)
 			return
 		}
+
 		fmt.Printf("%s Done validating.\n", curTP.IPAddress)
 		completeStep(curTP, stepIndx, "Removing old Firmware")
 		go removeOldFirmware(curTP)
@@ -92,7 +93,6 @@ func evaluateNextStep(curTP tpStatus) {
 		//Set status and update the
 		completeStep(curTP, stepIndx, "Sending Firmware")
 		go sendFirmware(curTP) //ship this off concurrently - don't block.
-
 	case 4:
 		fmt.Printf("%s Moving to update firmware.\n", curTP.IPAddress)
 
@@ -160,6 +160,7 @@ func reloadIPTable(tp tpStatus) {
 			status = append(status, resp)
 		}
 	}
+
 	evaluateNextStep(tp)
 }
 
@@ -181,7 +182,7 @@ func loadProject(tp tpStatus) {
 	startWait(tp, config)
 }
 
-func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) {
+func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) { // Sends telnet commands
 	var req = telnetRequest{IPAddress: tp.IPAddress, Command: command, Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
@@ -219,12 +220,12 @@ func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) {
 //Send the response of a telnet command to validate success, will return true
 //if output is consistent with success, false if need to retry.
 func validateCommand(output string, command string) bool {
-
 	//List of responses that always denote a retry.
 	var generalBad = []string{
 		"Bad or Incomplete Command",
 		"Move Failed",
-		"i/o timeout"}
+		"i/o timeout",
+	}
 
 	for i := range generalBad {
 		if strings.Contains(output, generalBad[i]) {
@@ -258,11 +259,13 @@ func moveProject(tp tpStatus) {
 		reportError(tp, err)
 		return
 	}
+
 	fmt.Printf("%s Reboot Return Value: %v\n", tp.IPAddress, resp)
 
 	startWait(tp, config)
 }
 
+// Sends a complete step to the update channel
 func completeStep(tp tpStatus, step int, curStatus string) {
 	tp.Steps[step].Completed = true
 	tp.CurrentStatus = curStatus
@@ -302,8 +305,8 @@ func sendFTPRequest(tp tpStatus, path string, file string) {
 	}
 	defer resp.Body.Close()
 	b, _ = ioutil.ReadAll(resp.Body)
-	fmt.Printf("%s Submission response: %s\n", tp.IPAddress, b)
 
+	fmt.Printf("%s Submission response: %s\n", tp.IPAddress, b)
 }
 
 func retrieveIPTable(tp tpStatus) {
