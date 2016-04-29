@@ -72,7 +72,7 @@ func evaluateNextStep(curTP tpStatus) {
 		go retrieveIPTable(curTP)
 	case 1:
 		fmt.Printf("%s We've gotten IP Table.\n", curTP.IPAddress)
-		need, str := validateNeed(curTP)
+		need, str := validateNeed(curTP, false)
 		if !need {
 			fmt.Printf("%s Not needed: %s\n", curTP.IPAddress, str)
 			reportNotNeeded(curTP, "Not Needed: "+str)
@@ -391,7 +391,7 @@ func initializeTP(tp tpStatus) {
 }
 
 func validateTP(tp tpStatus) {
-	m, err := doValidation(tp)
+	m, err := doValidation(tp, false)
 
 	if err == nil {
 		reportSuccess(tp)
@@ -420,7 +420,7 @@ func validateTP(tp tpStatus) {
 	reportError(tp, errors.New(errStr))
 }
 
-func doValidation(tp tpStatus) (map[string]bool, error) {
+func doValidation(tp tpStatus, ignoreTP bool) (map[string]bool, error) {
 	toReturn := make(map[string]bool)
 	needed := false
 	//we need to validate IPTable, Firmware, and Project
@@ -445,18 +445,18 @@ func doValidation(tp tpStatus) (map[string]bool, error) {
 	} else {
 		toReturn["firmware"] = true
 	}
+	if !ignoreTP {
+		ipTable, _ := getIPTable(tp.IPAddress)
 
-	ipTable, _ := getIPTable(tp.IPAddress)
+		fmt.Printf("%s IPTABLE: %s\n", tp.IPAddress, ipTable)
 
-	fmt.Printf("%s IPTABLE: %s\n", tp.IPAddress, ipTable)
-
-	if !ipTable.Equals(tp.IPTable) {
-		toReturn["iptable"] = false
-		needed = true
-	} else {
-		toReturn["iptable"] = true
+		if !ipTable.Equals(tp.IPTable) {
+			toReturn["iptable"] = false
+			needed = true
+		} else {
+			toReturn["iptable"] = true
+		}
 	}
-
 	if needed {
 		return toReturn, errors.New("Needed update")
 	}
@@ -524,7 +524,7 @@ func getFirmwareVersion(tp tpStatus) (string, error) {
 	return match[1], nil
 }
 
-func validateNeed(tp tpStatus) (bool, string) {
+func validateNeed(tp tpStatus, ignoreTP bool) (bool, string) {
 	prompt, err := getPrompt(tp)
 
 	fmt.Printf("%s Prompt Returned was: %s \n", tp.IPAddress, prompt)
@@ -542,7 +542,7 @@ func validateNeed(tp tpStatus) (bool, string) {
 		return true, ""
 	}
 
-	m, err := doValidation(tp)
+	m, err := doValidation(tp, ignoreTP)
 
 	if err != nil {
 		fmt.Printf("%s Validation error: %s\n", tp.IPAddress, err.Error())

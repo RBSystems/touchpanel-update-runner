@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -18,6 +19,9 @@ import (
 var tpStatusMap map[string]tpStatus //global map of tpStatus to allow for status updates.
 var config configuration            //global configuration data, readonly.
 var updateChannel chan tpStatus
+
+var validationStatus map[string]tpStatus
+var validationChannel chan tpStatus
 
 func buildStartTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.ResponseWriter, r *http.Request) {
 	return func(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -41,7 +45,7 @@ func buildStartTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.
 
 		//TODO: Check job information
 
-		tp := startTP(submissionChannel, jobInfo)
+		tp := startTP(jobInfo)
 
 		bits, _ = json.Marshal(tp)
 		w.Header().Add("Content-Type", "applicaiton/json")
@@ -82,7 +86,7 @@ func buildStartMultTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w h
 			info.Info[j].FliptopConfiguration = info.FliptopConfiguration
 			info.Info[j].Batch = batch
 
-			tp := startTP(submissionChannel, info.Info[j])
+			tp := startTP(info.Info[j])
 
 			tpList = append(tpList, tp)
 		}
@@ -102,8 +106,15 @@ func updater() {
 	}
 }
 
-func startTP(submissionChannel chan<- tpStatus, jobInfo jobInformation) tpStatus {
+func startTP(jobInfo jobInformation) tpStatus {
 
+	tp := buildTP(jobInfo)
+	fmt.Printf("%s Starting.\n", tp.IPAddress)
+	go startRun(tp)
+	return tp
+}
+
+func buildTP(jobInfo jobInformation) tpStatus {
 	tp := tpStatus{
 		IPAddress:     jobInfo.IPAddress,
 		Steps:         getTPSteps(),
@@ -124,10 +135,6 @@ func startTP(submissionChannel chan<- tpStatus, jobInfo jobInformation) tpStatus
 
 	UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("Avengineers.byu.edu"+tp.IPAddress+tp.RoomName))
 	tp.UUID = UUID.String()
-
-	fmt.Printf("%s Starting.\n", tp.IPAddress)
-
-	go startRun(tp)
 
 	return tp
 }
@@ -281,10 +288,98 @@ func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
 func test(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
+func validate(c web.C, w http.ResponseWriter, r *http.Request) {
+	bits, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "%s", err.Error())
+	}
+	var info multiJobInformation
+
+	err = json.Unmarshal(bits, &info)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "%s", err.Error())
+	}
+
+	batch := time.Now().Format(time.RFC3339)
+
+	for i := range info.Info {
+		fmt.Printf("Buildling TP...")
+
+		info.Info[i].Batch = batch
+		info.Info[i].HDConfiguration = info.HDConfiguration
+		tp := buildTP(info.Info[i])
+		tp.IPAddress = strings.TrimSpace(tp.IPAddress)
+		tp.CurrentStatus = "In progress"
+		tp.Hostname = "TEMP " + tp.UUID
+		validationChannel <- tp
+		go validateFunction(tp, 0)
+	}
+}
+
+func getValidationStatus(c web.C, w http.ResponseWriter, r *http.Request) {
+	hostnames := []string{}
+	values := make(map[string]tpStatus)
+
+	for _, v := range validationStatus {
+		values[v.Hostname] = v
+		hostnames = append(hostnames, v.Hostname)
+	}
+
+	sort.Strings(hostnames)
+	fmt.Printf("Length of Map: %v\n", len(validationStatus))
+	fmt.Printf("Length of hostnames: %v\n", len(hostnames))
+
+	w.Header().Add("Content-Type", "text/html")
+
+	for h := range hostnames {
+		cur := values[hostnames[h]]
+		fmt.Fprintf(w, "%s \t\t\t %s \t\t\t %s \n", cur.Hostname, cur.IPAddress, cur.CurrentStatus)
+	}
+}
+
+func validateHelper() {
+	for true {
+		toAdd := <-validationChannel
+		validationStatus[toAdd.IPAddress] = toAdd
+	}
+}
+
+func validateFunction(tp tpStatus, retries int) {
+	need, str := validateNeed(tp, true)
+	hostname, _ := sendCommand(tp, "hostname", true)
+
+	if hostname != "" {
+		hostname = strings.Split(hostname, ":")[1]
+		if hostname != "" {
+			tp.Hostname = strings.TrimSpace(hostname)
+		} else {
+			if retries < 2 {
+				fmt.Printf("%s retrying in 30 seconds...", tp.IPAddress)
+				time.Sleep(30 * time.Second)
+				validateFunction(tp, retries+1)
+				return
+			}
+		}
+	}
+	if need {
+		fmt.Printf("%s needed.", tp.IPAddress)
+		tp.CurrentStatus = "Needed: " + str
+		validationChannel <- tp
+	} else {
+		fmt.Printf("%s Not needed.", tp.IPAddress)
+		tp.CurrentStatus = "Up to date."
+		validationChannel <- tp
+	}
+}
+
 func main() {
 	var ConfigFileLocation = flag.String("config", "./config.json", "The locaton of the config file.")
 
 	tpStatusMap = make(map[string]tpStatus)
+	validationStatus = make(map[string]tpStatus)
 
 	flag.Parse()
 
@@ -293,8 +388,10 @@ func main() {
 	//Build our channels
 	submissionChannel := make(chan tpStatus, 50)
 	updateChannel = make(chan tpStatus, 150)
+	validationChannel = make(chan tpStatus, 150)
 
 	go updater()
+	go validateHelper()
 
 	//build our handlers, to have access to channels they must be wrapped
 
@@ -319,6 +416,11 @@ func main() {
 	goji.Get("/touchpanels/status/concise/", getAllTPStatusConcise)
 
 	goji.Post("/touchpanels/test/", test)
+
+	goji.Post("/validate/touchpanels", validate)
+	goji.Post("/validate/touchpanels/", validate)
+	goji.Get("/validate/touchpanels/status", getValidationStatus)
+	goji.Get("/validate/touchpanels/status/", getValidationStatus)
 
 	goji.Serve()
 }
