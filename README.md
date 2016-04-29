@@ -1,0 +1,1 @@
+![Whiteboard Picture](whiteboard.jpg)
