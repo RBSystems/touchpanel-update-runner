@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -31,8 +32,8 @@ func getTPSteps() []step {
 func getTPStepNames() []string {
 	var n []string
 	n = append(n,
-		"CheckCurrentVersion/Date", //0
-		"Get IPTable",              //1
+		"Get IPTable",              //0
+		"CheckCurrentVersion/Date", //1
 		"Remove Old Firmware",      //2
 		"Initialize",               //3
 		"Copy Firmware",            //4
@@ -66,14 +67,20 @@ func evaluateNextStep(curTP tpStatus) {
 
 	switch stepIndx { //determine where to go next.
 	case 0:
-		fmt.Printf("%s Done validating.\n", curTP.IPAddress)
-		completeStep(curTP, stepIndx, "Getting IP Table")
+		completeStep(curTP, stepIndx, "Validating")
 
-		go setIPTable(curTP)
+		go retrieveIPTable(curTP)
 	case 1:
 		fmt.Printf("%s We've gotten IP Table.\n", curTP.IPAddress)
-		completeStep(curTP, stepIndx, "Getting IP Table")
+		need, str := validateNeed(curTP, false)
+		if !need {
+			fmt.Printf("%s Not needed: %s\n", curTP.IPAddress, str)
+			reportNotNeeded(curTP, "Not Needed: "+str)
+			return
+		}
 
+		fmt.Printf("%s Done validating.\n", curTP.IPAddress)
+		completeStep(curTP, stepIndx, "Removing old Firmware")
 		go removeOldFirmware(curTP)
 	case 2:
 		fmt.Printf("%s Old Firmware removed.\n", curTP.IPAddress)
@@ -86,7 +93,6 @@ func evaluateNextStep(curTP tpStatus) {
 		//Set status and update the
 		completeStep(curTP, stepIndx, "Sending Firmware")
 		go sendFirmware(curTP) //ship this off concurrently - don't block.
-
 	case 4:
 		fmt.Printf("%s Moving to update firmware.\n", curTP.IPAddress)
 
@@ -116,6 +122,7 @@ func evaluateNextStep(curTP tpStatus) {
 		fmt.Printf("%s IPTable loaded\n", curTP.IPAddress)
 		completeStep(curTP, stepIndx, "Validating")
 
+		go validateTP(curTP)
 	default:
 	}
 }
@@ -153,6 +160,7 @@ func reloadIPTable(tp tpStatus) {
 			status = append(status, resp)
 		}
 	}
+
 	evaluateNextStep(tp)
 }
 
@@ -161,7 +169,7 @@ func loadProject(tp tpStatus) {
 
 	time.Sleep(60 * time.Second) //for some reason we keep getting issues with this. It won't load the project for a while.
 
-	fmt.Printf("%s Sending project load.", tp.IPAddress)
+	fmt.Printf("%s Sending project load.\n", tp.IPAddress)
 	command := "projectload"
 	resp, err := sendCommand(tp, command, true)
 
@@ -174,7 +182,7 @@ func loadProject(tp tpStatus) {
 	startWait(tp, config)
 }
 
-func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) {
+func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) { // Sends telnet commands
 	var req = telnetRequest{IPAddress: tp.IPAddress, Command: command, Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
@@ -189,13 +197,13 @@ func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
+	defer resp.Body.Close()
 	str := string(b)
 
 	//TODO: Potentially allow for multiple retries.
 	if !validateCommand(str, command) {
 		if tryAgain {
-			fmt.Printf("%s bad output: %s", tp.IPAddress, str)
+			fmt.Printf("%s bad output: %s \n", tp.IPAddress, str)
 			fmt.Printf("%s Retrying command %s ...\n", tp.IPAddress, command)
 			str, err = sendCommand(tp, command, false) //Try again, but don't re
 		} else {
@@ -212,11 +220,12 @@ func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) {
 //Send the response of a telnet command to validate success, will return true
 //if output is consistent with success, false if need to retry.
 func validateCommand(output string, command string) bool {
-
 	//List of responses that always denote a retry.
 	var generalBad = []string{
 		"Bad or Incomplete Command",
-		"Move Failed"}
+		"Move Failed",
+		"i/o timeout",
+	}
 
 	for i := range generalBad {
 		if strings.Contains(output, generalBad[i]) {
@@ -250,15 +259,18 @@ func moveProject(tp tpStatus) {
 		reportError(tp, err)
 		return
 	}
+
 	fmt.Printf("%s Reboot Return Value: %v\n", tp.IPAddress, resp)
 
 	startWait(tp, config)
 }
 
+// Sends a complete step to the update channel
 func completeStep(tp tpStatus, step int, curStatus string) {
 	tp.Steps[step].Completed = true
 	tp.CurrentStatus = curStatus
-	tpStatusMap[tp.UUID] = tp
+
+	updateChannel <- tp
 }
 
 func copyProject(tp tpStatus) {
@@ -291,21 +303,23 @@ func sendFTPRequest(tp tpStatus, path string, file string) {
 	if err != nil {
 		reportError(tp, err)
 	}
+	defer resp.Body.Close()
 	b, _ = ioutil.ReadAll(resp.Body)
-	fmt.Printf("%s Submission response: %s\n", tp.IPAddress, b)
 
+	fmt.Printf("%s Submission response: %s\n", tp.IPAddress, b)
 }
 
-func setIPTable(tp tpStatus) {
+func retrieveIPTable(tp tpStatus) {
 	ipTable, err := getIPTable(tp.IPAddress)
 
 	if err != nil {
 		//TODO: Decide what to do here
-		fmt.Printf("%s\n", err.Error())
+		fmt.Printf("%s ERROR: %s\n", tp.IPAddress, err.Error())
 		reportError(tp, err)
 		return
 	}
-	fmt.Printf("%s Got the IPtable: %s\n", tp.IPAddress, ipTable)
+	tp.IPTable = ipTable
+	//fmt.Printf("%s Got the IPtable: %s\n", tp.IPAddress, ipTable)
 	evaluateNextStep(tp)
 }
 
@@ -313,7 +327,6 @@ func updateFirmware(tp tpStatus) {
 	fmt.Printf("%s Firmware Update \n", tp.IPAddress)
 
 	resp, err := sendCommand(tp, "puf", true)
-
 	if err != nil {
 		reportError(tp, err)
 		return
@@ -337,6 +350,28 @@ func removeOldFirmware(tp tpStatus) {
 	evaluateNextStep(tp)
 }
 
+func getPrompt(tp tpStatus) (string, error) {
+	var req = telnetRequest{IPAddress: tp.IPAddress, Command: "hostname"}
+	bits, _ := json.Marshal(req)
+
+	resp, err := http.Post(config.TelnetServiceLocation+"/getPrompt", "application/json", bytes.NewBuffer(bits))
+	if err != nil {
+		return "", err
+	}
+
+	b, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		return "", err
+	}
+
+	respValue := telnetRequest{}
+
+	err = json.Unmarshal(b, &respValue)
+
+	return respValue.Prompt, nil
+}
+
 func initializeTP(tp tpStatus) {
 	err := initialize(tp.IPAddress, config)
 
@@ -357,12 +392,176 @@ func initializeTP(tp tpStatus) {
 	}
 }
 
+// Involved in the validation endpoints
 func validateTP(tp tpStatus) {
-	//we need to validate IPTable, Firmware, and Project
-	ipTable, _ := getIPTable(tp.IPAddress)
-
-	if ipTable.Equals(tp.IPTable) {
-
+	m, err := doValidation(tp, false)
+	if err == nil {
+		reportSuccess(tp)
+		return
 	}
 
+	// if the error was just IPTable try it again.
+	if m["iptable"] == false && m["firmware"] == true && m["project"] == true {
+		fmt.Printf("%s iptable not loaded\n", tp.IPAddress)
+
+		if tp.Steps[10].Attempts < 2 {
+			tp.Steps[10].Attempts++
+			tp.Steps[9].Completed = false
+
+			startWait(tp, config)
+			return
+		}
+	}
+
+	errStr := "Validation failed: "
+	for k, v := range m {
+		if v == false {
+			errStr = errStr + ": " + k + " "
+		}
+	}
+
+	reportError(tp, errors.New(errStr))
+}
+
+// Called from validateTP
+func doValidation(tp tpStatus, ignoreTP bool) (map[string]bool, error) {
+	toReturn := make(map[string]bool)
+	needed := false
+	//we need to validate IPTable, Firmware, and Project
+	projVer, err := getProjectVersion(tp, 0)
+
+	if err != nil || !strings.EqualFold(projVer.ProjectDate, tp.Information.ProjectDate) {
+		fmt.Printf("%s Return Ver: %s\n", tp.IPAddress, projVer.ProjectDate)
+		fmt.Printf("%s Needed Ver: %s\n", tp.IPAddress, tp.ProjectDate)
+		if err != nil {
+			fmt.Printf("%s ERROR: %s\n", tp.IPAddress, err.Error())
+		}
+		toReturn["project"] = false
+		needed = true
+	} else {
+		toReturn["project"] = true
+	}
+
+	firmware, err := getFirmwareVersion(tp)
+	if err != nil || firmware != tp.Information.FirmwareVersion {
+		toReturn["firmware"] = false
+		needed = true
+	} else {
+		toReturn["firmware"] = true
+	}
+	if !ignoreTP {
+		ipTable, _ := getIPTable(tp.IPAddress)
+
+		fmt.Printf("%s IPTABLE: %s\n", tp.IPAddress, ipTable)
+
+		if !ipTable.Equals(tp.IPTable) {
+			toReturn["iptable"] = false
+			needed = true
+		} else {
+			toReturn["iptable"] = true
+		}
+	}
+	if needed {
+		return toReturn, errors.New("Needed update")
+	}
+
+	return toReturn, nil
+}
+
+func getProjectVersion(tp tpStatus, retry int) (modelInformation, error) {
+	fmt.Printf("%s Getting project info...\n", tp.IPAddress)
+	info := modelInformation{}
+
+	rawData, err := sendCommand(tp, "xget ~.LocalInfo.vtpage", true)
+
+	if err != nil {
+		return info, err
+	}
+
+	//We've tried to retrieve the vtpage at the same time as someone else. Wait for
+	//them to finish and try again.
+	if strings.Contains(rawData, ":Could not") && retry < 2 {
+		fmt.Printf("%s Could not get project information, trying again in 45 seconds...\n", tp.IPAddress)
+		time.Sleep(45 * time.Second)
+		return getProjectVersion(tp, retry+1)
+	}
+
+	re := regexp.MustCompile("VTZ=(.*?)\\nDate=(.*?)\\n") //we just want project title and date
+
+	matches := re.FindStringSubmatch(string(rawData))
+
+	if matches == nil {
+		fmt.Printf("%s %s\n", tp.IPAddress, rawData)
+		return info, errors.New("Bad data returned.")
+	}
+
+	fmt.Printf("%s Project Info: %+v\n", tp.IPAddress, matches)
+
+	info.ProjectLocation = strings.TrimSpace(matches[1])
+	info.ProjectDate = strings.TrimSpace(matches[2])
+
+	fmt.Printf("%s ProjectDate:%s  ProjectName: %s\n", tp.IPAddress, info.ProjectDate, info.ProjectLocation)
+
+	return info, nil
+}
+
+func getFirmwareVersion(tp tpStatus) (string, error) {
+	fmt.Printf("%s Getting Firmware Version\n", tp.IPAddress)
+
+	data, err := sendCommand(tp, "ver", true)
+
+	if err != nil {
+		return "", err
+	}
+
+	re := regexp.MustCompile("\\[v(.*?)\\s")
+
+	match := re.FindStringSubmatch(string(data))
+
+	if match == nil {
+		return "", errors.New("Bad data returned.")
+	}
+
+	fmt.Printf("%s Firmware Version: %s\n", tp.IPAddress, match[1])
+
+	return match[1], nil
+}
+
+// Checks to make sure the device in question is a TecHD touch panel
+// Bypassed in final validation after all other steps have suceeded (firmware installed, IP tables, etc.)
+func validateNeed(tp tpStatus, ignoreTP bool) (bool, string) {
+	prompt, err := getPrompt(tp)
+
+	fmt.Printf("%s Prompt Returned was: %s \n", tp.IPAddress, prompt)
+
+	if err != nil {
+		return false, "Couldn't get a prompt."
+	}
+
+	if tp.Type != "TECHD" || !strings.Contains(prompt, "TSW-750>") {
+		return false, "Not a touchpanel. Prompt received: " + prompt
+	}
+
+	if tp.Force {
+		fmt.Printf("%s Forced update.\n", tp.IPAddress)
+		return true, ""
+	}
+
+	m, err := doValidation(tp, ignoreTP)
+
+	if err != nil {
+		fmt.Printf("%s Validation error: %s\n", tp.IPAddress, err.Error())
+	}
+
+	if err == nil {
+		return false, "Already has firmware and project."
+	}
+
+	for k, v := range m {
+		if !v {
+			fmt.Printf("%s needs %s\n", tp.IPAddress, k)
+		}
+	}
+
+	return true, ""
 }

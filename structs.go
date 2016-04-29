@@ -7,15 +7,26 @@ type configuration struct {
 	FTPServiceLocation    string //Locaitons for the microservices to be used.
 	TelnetServiceLocation string
 	PauseServiceLocaiton  string
+	ESAddress             string
 	Hostname              string //hostname and port of the server running the touchpanel update - to be used to format the callbacks.
 	AttemptLimit          int    //Number of times to retry a panel before reporting a failure.
 }
 
 type jobInformation struct {
-	Type                 []string
+	Type                 []string // HDTec, TecLite, fliptop
+	IPAddress            string
+	Force                bool
+	Batch                string
 	HDConfiguration      modelInformation //The information for the HDTec panels
 	TecLiteConfiguraiton modelInformation //the information for the TecLite panels
 	FliptopConfiguration modelInformation //The information for the fliptop panels.
+}
+
+type multiJobInformation struct {
+	HDConfiguration      modelInformation //The information for the HDTec panels
+	TecLiteConfiguraiton modelInformation //the information for the TecLite panels
+	FliptopConfiguration modelInformation //The information for the fliptop panels.
+	Info                 []jobInformation
 }
 
 type submissionRequest struct {
@@ -68,6 +79,7 @@ type step struct {
 	StepName  string //Name of the step
 	Completed bool   //if the step has been completed.
 	Info      string //Any information gathered from the step. Usually the JSON body retrieved.
+	Attempts  int
 }
 
 //IPTable represents an IPTable returend from a crestron device

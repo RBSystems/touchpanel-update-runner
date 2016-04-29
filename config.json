@@ -3,5 +3,6 @@
   "PauseServiceLocaiton": "http://avmetrics1.byu.edu:8003/submit",
   "TelnetServiceLocation": "http://avmetrics1.byu.edu:8001/sendCommand",
   "Hostname": "http://10.5.34.69:8000",
+  "ESAddress": "http://search-byu-oit-av-metrics-ruenjnrqfuhghh7omvtmgcqe7m.us-west-1.es.amazonaws.com/tpupdates/",
   "AttemptLimit": 2
 }
