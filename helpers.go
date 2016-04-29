@@ -355,7 +355,6 @@ func getPrompt(tp tpStatus) (string, error) {
 	bits, _ := json.Marshal(req)
 
 	resp, err := http.Post(config.TelnetServiceLocation+"/getPrompt", "application/json", bytes.NewBuffer(bits))
-
 	if err != nil {
 		return "", err
 	}
@@ -393,9 +392,9 @@ func initializeTP(tp tpStatus) {
 	}
 }
 
+// Involved in the validation endpoints
 func validateTP(tp tpStatus) {
 	m, err := doValidation(tp, false)
-
 	if err == nil {
 		reportSuccess(tp)
 		return
@@ -413,6 +412,7 @@ func validateTP(tp tpStatus) {
 			return
 		}
 	}
+
 	errStr := "Validation failed: "
 	for k, v := range m {
 		if v == false {
@@ -423,6 +423,7 @@ func validateTP(tp tpStatus) {
 	reportError(tp, errors.New(errStr))
 }
 
+// Called from validateTP
 func doValidation(tp tpStatus, ignoreTP bool) (map[string]bool, error) {
 	toReturn := make(map[string]bool)
 	needed := false
@@ -465,7 +466,6 @@ func doValidation(tp tpStatus, ignoreTP bool) (map[string]bool, error) {
 	}
 
 	return toReturn, nil
-
 }
 
 func getProjectVersion(tp tpStatus, retry int) (modelInformation, error) {
@@ -527,6 +527,8 @@ func getFirmwareVersion(tp tpStatus) (string, error) {
 	return match[1], nil
 }
 
+// Checks to make sure the device in question is a TecHD touch panel
+// Bypassed in final validation after all other steps have suceeded (firmware installed, IP tables, etc.)
 func validateNeed(tp tpStatus, ignoreTP bool) (bool, string) {
 	prompt, err := getPrompt(tp)
 
