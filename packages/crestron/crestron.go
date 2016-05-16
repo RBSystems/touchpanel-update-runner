@@ -10,7 +10,7 @@ import (
 
 func Initialize(ipAddress string) error {
 	fmt.Printf("%s Intializing\n", ipAddress)
-	var req = telnetRequest{IPAddress: ipAddress, Command: "initialize", Prompt: "TSW-750>"}
+	req := telnetRequest{IPAddress: ipAddress, Command: "initialize", Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
 	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS")+"Confirm", "application/json", bytes.NewBuffer(bits))
@@ -23,7 +23,7 @@ func Initialize(ipAddress string) error {
 }
 
 func RemoveOldPUF(ipAddress string) error {
-	var req = telnetRequest{IPAddress: ipAddress, Command: "cd /ROMDISK/user/sytem\nerase *.puf", Prompt: "TSW-750>"}
+	req := telnetRequest{IPAddress: ipAddress, Command: "cd /ROMDISK/user/sytem\nerase *.puf", Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
 	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS"), "application/json", bytes.NewBuffer(bits))

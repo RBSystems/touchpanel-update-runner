@@ -182,57 +182,23 @@ func loadProject(tp tpStatus) {
 	startWait(tp)
 }
 
-func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) { // Sends telnet commands
-	var req = telnetRequest{IPAddress: tp.IPAddress, Command: command, Prompt: "TSW-750>"}
-	bits, _ := json.Marshal(req)
-
-	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS"), "application/json", bytes.NewBuffer(bits))
-
-	if err != nil {
-		return "", err
-	}
-
-	b, err := ioutil.ReadAll(resp.Body)
-
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	str := string(b)
-
-	// TODO: Potentially allow for multiple retries
-	if !validateCommand(str, command) {
-		if tryAgain {
-			fmt.Printf("%s bad output: %s \n", tp.IPAddress, str)
-			fmt.Printf("%s Retrying command %s ...\n", tp.IPAddress, command)
-			str, err = sendCommand(tp, command, false) // Try again, but don't report
-		} else {
-			return "", errors.New("Issue with command: " + str)
-		}
-	}
-
-	step, _ := tp.GetCurStep()
-	tp.Steps[step].Info = str
-
-	return str, nil
-}
-
 // Send the response of a telnet command to validate success, will return true
 // if output is consistent with success, false if need to retry
 func validateCommand(output string, command string) bool {
 	// List of responses that always denote a retry
-	var generalBad = []string{
+	var badResponses = []string{
 		"Bad or Incomplete Command",
 		"Move Failed",
 		"i/o timeout",
 	}
 
-	for i := range generalBad {
-		if strings.Contains(output, generalBad[i]) {
+	for i := range badResponses {
+		if strings.Contains(output, badResponses[i]) {
 			return false
 		}
 	}
-	// Do command specific checking here
+
+	// TODO: Do command-specific checking here
 
 	return true
 }

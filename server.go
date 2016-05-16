@@ -327,6 +327,6 @@ func main() {
 
 	e.Post("/validate/touchpanels", validate)
 
-	fmt.Printf("Touchpanel Update Runner is listening on %s\n", port)
+	fmt.Printf("The Touchpanel Update Runner is listening on %s\n", port)
 	e.Run(fasthttp.New(port))
 }

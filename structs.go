@@ -23,13 +23,6 @@ type submissionRequest struct {
 	CallbackAddress string
 }
 
-type telnetRequest struct {
-	IPAddress string
-	Port      string
-	Command   string
-	Prompt    string
-}
-
 type ftpRequest struct {
 	IPAddressHostname string    `json:",omitempty"`
 	CallbackAddress   string    `json:",omitempty"`
