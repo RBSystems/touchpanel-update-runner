@@ -20,80 +20,11 @@ import (
 	"github.com/zenazn/goji/web"
 )
 
-var tpStatusMap map[string]tpStatus // global map of tpStatus to allow for status updates.
-var config configuration            // global configuration data, readonly.
+var tpStatusMap map[string]tpStatus // Global map of tpStatus to allow for status updates
 var updateChannel chan tpStatus
 
 var validationStatus map[string]tpStatus
 var validationChannel chan tpStatus
-
-func buildStartTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.ResponseWriter, r *http.Request) {
-	return func(c web.C, w http.ResponseWriter, r *http.Request) {
-		ipaddr := c.URLParams["ipAddress"]
-		batch := time.Now().Format(time.RFC3339)
-		bits, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "%s", err.Error())
-		}
-		var jobInfo = jobInformation{}
-
-		err = json.Unmarshal(bits, &jobInfo)
-
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "%s", err.Error())
-		}
-		jobInfo.IPAddress = ipaddr
-		jobInfo.Batch = batch
-
-		// TODO: Check job information
-
-		tp := startTP(jobInfo)
-
-		bits, _ = json.Marshal(tp)
-		w.Header().Add("Content-Type", "application/json")
-
-		fmt.Fprintf(w, "%s", bits)
-	}
-}
-
-func buildStartMultipleTPUpdate(submissionChannel chan<- tpStatus) func(c echo.Context) error {
-	return func(c echo.Context) error {
-		info := multiJobInformation{}
-		c.Bind(&info)
-
-		// TODO: Check job information
-
-		batch := time.Now().Format(time.RFC3339)
-
-		tpList := []tpStatus{}
-		for j := range info.Info {
-			if info.Info[j].IPAddress == "" {
-				tpList = append(tpList, tpStatus{
-					CurrentStatus: "Could not start, no IP Address provided.",
-					ErrorInfo:     []string{"No IP Address provided."}})
-				continue
-			}
-
-			info.Info[j].HDConfiguration = info.HDConfiguration
-			info.Info[j].TecLiteConfiguraiton = info.TecLiteConfiguraiton
-			info.Info[j].FliptopConfiguration = info.FliptopConfiguration
-			info.Info[j].Batch = batch
-
-			tp := startTP(info.Info[j])
-
-			tpList = append(tpList, tp)
-		}
-
-		bits, err := json.Marshal(tpList)
-		if err != nil {
-
-		}
-
-		c.JSON(http.StatusOK, bits)
-	}
-}
 
 // Just update, so we can get around concurrent map write issues
 func updater() {
@@ -210,25 +141,25 @@ func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	stepIndx, err := curTP.GetCurStep()
 
-	if err != nil { // if we're already done.
+	if err != nil { // if we're already done
 		fmt.Printf("%s Already done error %s\n", wr.IPAddressHostname, err.Error())
 		// go ReportCompletion(curTP)
 		return
 	}
 
 	b, _ = json.Marshal(&wr)
-	curTP.Steps[stepIndx].Info = string(b) + "\n" + curTP.Steps[stepIndx].Info // save the information about the wait into the step.
+	curTP.Steps[stepIndx].Info = string(b) + "\n" + curTP.Steps[stepIndx].Info // save the information about the wait into the step
 
 	fmt.Printf("%s Wait status %s\n", wr.IPAddressHostname, wr.Status)
 
-	if !strings.EqualFold(wr.Status, "success") { // If we timed out.
+	if !strings.EqualFold(wr.Status, "success") { // If we timed out
 		curTP.CurrentStatus = "Error"
 		fmt.Printf("%s Error %s\n", wr.IPAddressHostname, wr.Status)
 		reportError(curTP, errors.New("Problem waiting for restart."))
 		return
 	}
 
-	evaluateNextStep(curTP) // get the next step.
+	evaluateNextStep(curTP) // get the next step
 }
 
 func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -243,21 +174,21 @@ func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("%s Back from FTP\n", curTP.IPAddress)
 	stepIndx, err := curTP.GetCurStep()
 
-	if err != nil { // if we're already done.
+	if err != nil { // if we're already done
 		// go ReportCompletion(curTP)
 		return
 	}
 
-	curTP.Steps[stepIndx].Info = string(b) // save the information about the wait into the step.
+	curTP.Steps[stepIndx].Info = string(b) // save the information about the wait into the step
 
-	if !strings.EqualFold(fr.Status, "success") { // If we timed out.
+	if !strings.EqualFold(fr.Status, "success") { // If we timed out
 		fmt.Printf("%s Error: %s \n %s \n", fr.IPAddressHostname, fr.Status, fr.Error)
 		curTP.CurrentStatus = "Error"
 		reportError(curTP, errors.New("Problem waiting for restart."))
 		return
 	}
 
-	startWait(curTP, config)
+	startWait(curTP, configuration)
 
 	// fmt.Printf("%s Return: %s\n", curTP.IPAddress, b)
 }
@@ -353,14 +284,14 @@ func validateFunction(tp tpStatus, retries int) {
 }
 
 func main() {
-	var ConfigFileLocation = flag.String("config", "./config.json", "The locaton of the config file.")
+	var ConfigFileLocation = flag.String("configuration", "./configuration.json", "The locaton of the configuration file.")
 
 	tpStatusMap = make(map[string]tpStatus)
 	validationStatus = make(map[string]tpStatus)
 
 	flag.Parse()
 
-	config = helpers.ImportConfiguration(*ConfigFileLocation)
+	configuration = helpers.ImportConfiguration(*ConfigFileLocation)
 
 	// Build our channels
 	submissionChannel := make(chan tpStatus, 50)

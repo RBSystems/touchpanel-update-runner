@@ -7,11 +7,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
 
-// Starts the TP Update process.
+// Starts the TP Update process
 func startRun(curTP tpStatus) {
 	curTP.Attempts++
 
@@ -37,10 +38,10 @@ func startRun(curTP tpStatus) {
 	evaluateNextStep(curTP)
 }
 
-func startWait(curTP tpStatus, config configuration) error {
+func startWait(curTP tpStatus) error {
 	fmt.Printf("%s Sending to wait\n", curTP.IPAddress)
 
-	var req = waitRequest{IPAddressHostname: curTP.IPAddress, Port: 41795, CallbackAddress: config.TouchpanelUpdateRunnerAddress + "/callbacks/afterWait"}
+	var req = waitRequest{IPAddressHostname: curTP.IPAddress, Port: 41795, CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterWait"}
 
 	req.Identifier = curTP.UUID
 
@@ -49,10 +50,10 @@ func startWait(curTP tpStatus, config configuration) error {
 	// fmt.Printf("Payload being send: \n %s \n", string(bits))
 
 	// we have to wait for the thing to actually restart - otherwise we'll return
-	// before it gets in a non-communicative state.
-	time.Sleep(10 * time.Second) // TODO: Shift this into our wait microservice.
+	// before it gets in a non-communicative state
+	time.Sleep(10 * time.Second) // TODO: Shift this into our wait microservice
 
-	resp, err := http.Post(config.WaitForRebootMicroserviceAddress, "application/json", bytes.NewBuffer(bits))
+	resp, err := http.Post(os.Getenv("WAIT_FOR_REBOOT_MICROSERVICE_ADDRESS"), "application/json", bytes.NewBuffer(bits))
 
 	if err != nil {
 		return err
@@ -65,35 +66,6 @@ func startWait(curTP tpStatus, config configuration) error {
 	if !strings.Contains(string(body), "Added to queue") {
 		return errors.New(string(body))
 	}
-
-	return nil
-}
-
-func initialize(ipAddress string, config configuration) error {
-	fmt.Printf("%s Intializing\n", ipAddress)
-	var req = telnetRequest{IPAddress: ipAddress, Command: "initialize", Prompt: "TSW-750>"}
-	bits, _ := json.Marshal(req)
-
-	resp, err := http.Post(config.TelnetMicroserviceAddress+"Confirm", "application/json", bytes.NewBuffer(bits))
-	defer resp.Body.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func removeOldPUF(ipAddress string, config configuration) error {
-	var req = telnetRequest{IPAddress: ipAddress, Command: "cd /ROMDISK/user/sytem\nerase *.puf", Prompt: "TSW-750>"}
-	bits, _ := json.Marshal(req)
-
-	resp, err := http.Post(config.TelnetMicroserviceAddress, "application/json", bytes.NewBuffer(bits))
-	defer resp.Body.Close()
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
 
 	return nil
 }
@@ -125,8 +97,8 @@ func reportError(tp tpStatus, err error) {
 	ipTable := false
 
 	// if we want to retry
-	fmt.Printf("%s Attempts: %v, Limit: %v\n", tp.IPAddress, tp.Attempts, config.AttemptLimit)
-	if tp.Attempts < config.AttemptLimit {
+	fmt.Printf("%s Attempts: %v, Limit: %v\n", tp.IPAddress, tp.Attempts, configuration.AttemptLimit)
+	if tp.Attempts < configuration.AttemptLimit {
 		tp.Attempts++
 
 		fmt.Printf("%s Retring process.\n", tp.IPAddress)
@@ -136,13 +108,13 @@ func reportError(tp tpStatus, err error) {
 
 		tp.Steps = getTPSteps() // reset the steps
 
-		if ipTable { // if the iptable was already populated.
+		if ipTable { // if the iptable was already populated
 			tp.Steps[0].Completed = true
 		}
 
 		updateChannel <- tp
 
-		startWait(tp, config) // Who knows what state, run a wait on them.
+		startWait(tp) // Who knows what state, run a wait on them
 		return
 	}
 
@@ -161,7 +133,7 @@ func getIPTable(IPAddress string) (IPTable, error) {
 
 	bits, _ := json.Marshal(req)
 
-	resp, err := http.Post(config.TelnetMicroserviceAddress, "application/json", bytes.NewBuffer(bits))
+	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS"), "application/json", bytes.NewBuffer(bits))
 
 	if err != nil {
 		return toReturn, err
@@ -188,7 +160,7 @@ func getIPTable(IPAddress string) (IPTable, error) {
 func sendToELK(tp tpStatus, retry int) {
 	b, _ := json.Marshal(&tp)
 
-	resp, err := http.Post(config.ElasticsearchAddress+tp.Batch+"/"+tp.Hostname, "application/json", bytes.NewBuffer(b))
+	resp, err := http.Post(os.Getenv("ELASTICSEARCH_ADDRESS")+tp.Batch+"/"+tp.Hostname, "application/json", bytes.NewBuffer(b))
 
 	if err != nil {
 		if retry < 2 {

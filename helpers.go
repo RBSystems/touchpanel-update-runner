@@ -7,10 +7,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/byuoitav/touchpanel-update-runner/packages/crestron"
 )
 
 func getTPSteps() []step {
@@ -47,7 +50,6 @@ func getTPStepNames() []string {
 
 // TODO: Move all steps (0-3) to this paradigm
 func evaluateNextStep(curTP tpStatus) {
-
 	// -----------------------------------------
 	// DEBUG
 	// -----------------------------------------
@@ -64,7 +66,7 @@ func evaluateNextStep(curTP tpStatus) {
 		return
 	}
 
-	switch stepIndx { // determine where to go next.
+	switch stepIndx { // determine where to go next
 	case 0:
 		completeStep(curTP, stepIndx, "Validating")
 
@@ -91,7 +93,7 @@ func evaluateNextStep(curTP tpStatus) {
 
 		// Set status and update the
 		completeStep(curTP, stepIndx, "Sending Firmware")
-		go sendFirmware(curTP) // ship this off concurrently - don't block.
+		go sendFirmware(curTP) // ship this off concurrently - don't block
 	case 4:
 		fmt.Printf("%s Moving to update firmware.\n", curTP.IPAddress)
 
@@ -127,11 +129,10 @@ func evaluateNextStep(curTP tpStatus) {
 }
 
 func reloadIPTable(tp tpStatus) {
-	// veify that we actually need to reload the thing
+	// Verify that we actually need to reload
 	table, err := getIPTable(tp.IPAddress)
 
 	if err == nil && tp.IPTable.Equals(table) {
-		// we're done! time to validate
 		step, _ := tp.GetCurStep()
 		tp.Steps[step].Info = "No need to update. IPTable already matches."
 
@@ -166,7 +167,7 @@ func reloadIPTable(tp tpStatus) {
 func loadProject(tp tpStatus) {
 	fmt.Printf("%s Loading Project \n", tp.IPAddress)
 
-	time.Sleep(60 * time.Second) // for some reason we keep getting issues with this. It won't load the project for a while.
+	time.Sleep(60 * time.Second) // for some reason we keep getting issues with this. It won't load the project for a while
 
 	fmt.Printf("%s Sending project load.\n", tp.IPAddress)
 	command := "projectload"
@@ -178,14 +179,14 @@ func loadProject(tp tpStatus) {
 	}
 	fmt.Printf("%s Return Value: %v\n", tp.IPAddress, resp)
 
-	startWait(tp, config)
+	startWait(tp)
 }
 
 func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) { // Sends telnet commands
 	var req = telnetRequest{IPAddress: tp.IPAddress, Command: command, Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
-	resp, err := http.Post(config.TelnetMicroserviceAddress, "application/json", bytes.NewBuffer(bits))
+	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS"), "application/json", bytes.NewBuffer(bits))
 
 	if err != nil {
 		return "", err
@@ -199,12 +200,12 @@ func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) { /
 	defer resp.Body.Close()
 	str := string(b)
 
-	// TODO: Potentially allow for multiple retries.
+	// TODO: Potentially allow for multiple retries
 	if !validateCommand(str, command) {
 		if tryAgain {
 			fmt.Printf("%s bad output: %s \n", tp.IPAddress, str)
 			fmt.Printf("%s Retrying command %s ...\n", tp.IPAddress, command)
-			str, err = sendCommand(tp, command, false) // Try again, but don't re
+			str, err = sendCommand(tp, command, false) // Try again, but don't report
 		} else {
 			return "", errors.New("Issue with command: " + str)
 		}
@@ -217,9 +218,9 @@ func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) { /
 }
 
 // Send the response of a telnet command to validate success, will return true
-// if output is consistent with success, false if need to retry.
+// if output is consistent with success, false if need to retry
 func validateCommand(output string, command string) bool {
-	// List of responses that always denote a retry.
+	// List of responses that always denote a retry
 	var generalBad = []string{
 		"Bad or Incomplete Command",
 		"Move Failed",
@@ -231,7 +232,7 @@ func validateCommand(output string, command string) bool {
 			return false
 		}
 	}
-	// Do command specific checking here.
+	// Do command specific checking here
 
 	return true
 }
@@ -261,7 +262,7 @@ func moveProject(tp tpStatus) {
 
 	fmt.Printf("%s Reboot Return Value: %v\n", tp.IPAddress, resp)
 
-	startWait(tp, config)
+	startWait(tp)
 }
 
 // Sends a complete step to the update channel
@@ -274,7 +275,7 @@ func completeStep(tp tpStatus, step int, curStatus string) {
 
 func copyProject(tp tpStatus) {
 	fmt.Printf("%s Clearing old project...\n", tp.IPAddress)
-	sendCommand(tp, "delete /ROMDISK/user/Display/*", true) // clear out space for the copy to succeed.
+	sendCommand(tp, "delete /ROMDISK/user/Display/*", true) // clear out space for the copy to succeed
 
 	fmt.Printf("%s Submitting to copy Project.\n", tp.IPAddress)
 	sendFTPRequest(tp, "/FIRMWARE", tp.Information.ProjectLocation)
@@ -286,18 +287,16 @@ func sendFirmware(tp tpStatus) {
 }
 
 func sendFTPRequest(tp tpStatus, path string, file string) {
-	reqInfo := ftpRequest{ // our request.
+	reqInfo := ftpRequest{ // our request
 		IPAddressHostname: tp.IPAddress,
-		CallbackAddress:   config.TouchpanelUpdateRunnerAddress + "/callbacks/afterFTP",
+		CallbackAddress:   os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterFTP",
 		Path:              path,
 		File:              file,
 		Identifier:        tp.UUID}
 
 	b, _ := json.Marshal(&reqInfo)
 
-	// fmt.Printf("Request: %s\n", b)
-
-	resp, err := http.Post(config.FTPMicroserviceAddress, "application/json", bytes.NewBuffer(b))
+	resp, err := http.Post(os.Getenv("FTP_MICROSERVICE_ADDRESS"), "application/json", bytes.NewBuffer(b))
 
 	if err != nil {
 		reportError(tp, err)
@@ -333,11 +332,11 @@ func updateFirmware(tp tpStatus) {
 
 	fmt.Printf("%s Return Value: %v\n", tp.IPAddress, resp)
 
-	startWait(tp, config)
+	startWait(tp)
 }
 
 func removeOldFirmware(tp tpStatus) {
-	err := removeOldPUF(tp.IPAddress, config)
+	err := removeOldPUF(tp.IPAddress)
 
 	if err != nil {
 		// TODO: Decide what to do here
@@ -353,7 +352,7 @@ func getPrompt(tp tpStatus) (string, error) {
 	var req = telnetRequest{IPAddress: tp.IPAddress, Command: "hostname"}
 	bits, _ := json.Marshal(req)
 
-	resp, err := http.Post(config.TelnetMicroserviceAddress+"/getPrompt", "application/json", bytes.NewBuffer(bits))
+	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS")+"/getPrompt", "application/json", bytes.NewBuffer(bits))
 	if err != nil {
 		return "", err
 	}
@@ -372,7 +371,7 @@ func getPrompt(tp tpStatus) (string, error) {
 }
 
 func initializeTP(tp tpStatus) {
-	err := initialize(tp.IPAddress, config)
+	err := crestron.Initialize(tp.IPAddress)
 
 	if err != nil {
 		// TODO: Decide what to do here
@@ -380,9 +379,9 @@ func initializeTP(tp tpStatus) {
 		reportError(tp, err)
 		return
 	}
-	// curTP.CurStatus = "Waiting for post initialize reboot."
+
 	// wait for it to come back from initialize
-	err = startWait(tp, config)
+	err = startWait(tp)
 	if err != nil {
 		// TODO: Decide what to do here
 		fmt.Printf("%s ERROR: %s\n", tp.IPAddress, err.Error())
@@ -399,7 +398,7 @@ func validateTP(tp tpStatus) {
 		return
 	}
 
-	// if the error was just IPTable try it again.
+	// if the error was just IPTable try it again
 	if m["iptable"] == false && m["firmware"] == true && m["project"] == true {
 		fmt.Printf("%s iptable not loaded\n", tp.IPAddress)
 
@@ -407,7 +406,7 @@ func validateTP(tp tpStatus) {
 			tp.Steps[10].Attempts++
 			tp.Steps[9].Completed = false
 
-			startWait(tp, config)
+			startWait(tp)
 			return
 		}
 	}
@@ -478,7 +477,7 @@ func getProjectVersion(tp tpStatus, retry int) (modelInformation, error) {
 	}
 
 	// We've tried to retrieve the vtpage at the same time as someone else. Wait for
-	// them to finish and try again.
+	// them to finish and try again
 	if strings.Contains(rawData, ":Could not") && retry < 2 {
 		fmt.Printf("%s Could not get project information, trying again in 45 seconds...\n", tp.IPAddress)
 		time.Sleep(45 * time.Second)

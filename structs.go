@@ -9,13 +9,13 @@ type jobInformation struct {
 	Batch                string
 	HDConfiguration      modelInformation // The information for the HDTec panels
 	TecLiteConfiguraiton modelInformation // the information for the TecLite panels
-	FliptopConfiguration modelInformation // The information for the fliptop panels.
+	FliptopConfiguration modelInformation // The information for the fliptop panels
 }
 
 type multiJobInformation struct {
 	HDConfiguration      modelInformation // The information for the HDTec panels
 	TecLiteConfiguraiton modelInformation // the information for the TecLite panels
-	FliptopConfiguration modelInformation // The information for the fliptop panels.
+	FliptopConfiguration modelInformation // The information for the fliptop panels
 	Info                 []jobInformation
 }
 
@@ -48,27 +48,27 @@ type ftpRequest struct {
 type waitRequest struct {
 	IPAddressHostname string    // hostname to be pinged
 	Port              int       // port to be used when testing connection
-	Timeout           int       // Time in seconds to wait. Optional, will default to 300 seconds if not present or is 0.
+	Timeout           int       // Time in seconds to wait. Optional, will default to 300 seconds if not present or is 0
 	CallbackAddress   string    // complete address to send the notification that the host is responding
 	SubmissionTime    time.Time // Will be filled by the server as the time the process started pinging
 	CompletionTime    time.Time // Will be filled by the service as the time that a) Sucessfully responded or b) timed out
 	Status            string    // Timeout or Success
-	Identifier        string    `json:",omitempty"` // Optional value to be passed in so the requester can identify the host when it's sent back.
+	Identifier        string    `json:",omitempty"` // Optional value to be passed in so the requester can identify the host when it's sent back
 }
 
-// Represents information needed to update the touchpanels.
+// Represents information needed to update the touchpanels
 type modelInformation struct {
-	FirmwareLocation string // The location of the .puf file to be loaded.
-	ProjectLocation  string // The locaton of the compiled project file to be loaded.
-	ProjectDate      string // The compile date of the project to be loaded.
-	FirmwareVersion  string // The version of the firmeware to be loaded.
+	FirmwareLocation string // The location of the .puf file to be loaded
+	ProjectLocation  string // The locaton of the compiled project file to be loaded
+	ProjectDate      string // The compile date of the project to be loaded
+	FirmwareVersion  string // The version of the firmeware to be loaded
 }
 
-// Defines one step, it's completion status, as well as any information gathered from the step.
+// Defines one step, it's completion status, as well as any information gathered from the step
 type step struct {
 	StepName  string // Name of the step
-	Completed bool   // if the step has been completed.
-	Info      string // Any information gathered from the step. Usually the JSON body retrieved.
+	Completed bool   // if the step has been completed
+	Info      string // Any information gathered from the step. Usually the JSON body retrieved
 	Attempts  int
 }
 
