@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/byuoitav/roomview-ip-parser/helpers"
 	"github.com/jessemillar/health"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/engine/fasthttp"
@@ -54,7 +53,7 @@ func buildTP(jobInfo jobInformation) tpStatus {
 
 	// get the Information from the API about the current firmware/Project date
 
-	// Temporary fix - assume everything is HD
+	// Temporary fix - assume everything is Tec HD
 	tp.Information = jobInfo.HDConfiguration
 
 	UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("avengineers.byu.edu"+tp.IPAddress+tp.RoomName))
@@ -284,14 +283,10 @@ func validateFunction(tp tpStatus, retries int) {
 }
 
 func main() {
-	var ConfigFileLocation = flag.String("configuration", "./configuration.json", "The locaton of the configuration file.")
-
 	tpStatusMap = make(map[string]tpStatus)
 	validationStatus = make(map[string]tpStatus)
 
 	flag.Parse()
-
-	configuration = helpers.ImportConfiguration(*ConfigFileLocation)
 
 	// Build our channels
 	submissionChannel := make(chan tpStatus, 50)
@@ -301,10 +296,8 @@ func main() {
 	go updater()
 	go validateHelper()
 
-	// build our handlers, to have access to channels they must be wrapped
-
+	// Build our handlers--to have access to channels they must be wrapped
 	startTPUpdate := buildStartTPUpdate(submissionChannel)
-
 	startMultipleTPUpdate := buildStartMultipleTPUpdate(submissionChannel)
 
 	port := ":8000"
@@ -313,24 +306,27 @@ func main() {
 
 	e.Get("/health", health.Check)
 
-	e.Post("/touchpanels", startMultipleTPUpdate)
-	e.Post("/touchpanels/:ipAddress", startTPUpdate)
+	// Touchpanels
+	e.Get("/touchpanel/status", getAllTPStatus)
+	e.Get("/touchpanel/status/concise", getAllTPStatusConcise)
+	e.Get("/touchpanel/:ipAddress/status", getTPStatus)
 
-	e.Put("/touchpanels", startMultipleTPUpdate)
-	e.Put("/touchpanels/:ipAddress", startTPUpdate)
+	e.Post("/touchpanel", startMultipleTPUpdate)
+	e.Post("/touchpanel/:ipAddress", startTPUpdate)
+	e.Post("/touchpanel/test", test)
 
-	e.Post("/callbacks/afterWait", postWait)
-	e.Post("/callbacks/afterFTP", afterFTPHandle)
+	e.Put("/touchpanel", startMultipleTPUpdate)
+	e.Put("/touchpanel/:ipAddress", startTPUpdate)
 
-	e.Get("/touchpanels/:ipAddress/status", getTPStatus)
-	e.Get("/touchpanels/status", getAllTPStatus)
-	e.Get("/touchpanels/status/concise", getAllTPStatusConcise)
+	// Callback
+	e.Post("/callback/afterWait", postWait)
+	e.Post("/callback/afterFTP", afterFTPHandle)
 
-	e.Post("/touchpanels/test", test)
-	e.Post("/validate/touchpanels", validate)
-
+	// Validation
 	e.Get("/validate/touchpanels/status", getValidationStatus)
 
-	fmt.Printf("AV API is listening on %s\n", port)
+	e.Post("/validate/touchpanels", validate)
+
+	fmt.Printf("Touchpanel Update Runner is listening on %s\n", port)
 	e.Run(fasthttp.New(port))
 }

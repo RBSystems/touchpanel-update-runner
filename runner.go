@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/byuoitav/touchpanel-update-runner/helpers"
 )
 
 // Starts the TP Update process
@@ -77,7 +79,7 @@ func reportNotNeeded(tp tpStatus, status string) {
 	tp.EndTime = time.Now()
 	updateChannel <- tp
 
-	sendToELK(tp, 0)
+	helpers.SendToElastic(tp, 0)
 }
 
 func reportSuccess(tp tpStatus) {
@@ -87,18 +89,17 @@ func reportSuccess(tp tpStatus) {
 	tp.EndTime = time.Now()
 	updateChannel <- tp
 
-	sendToELK(tp, 0)
+	helpers.SendToElastic(tp, 0)
 }
 
 func reportError(tp tpStatus, err error) {
-
 	fmt.Printf("%s Reporting a failure  %s ...\n", tp.IPAddress, err.Error())
 
 	ipTable := false
 
 	// if we want to retry
-	fmt.Printf("%s Attempts: %v, Limit: %v\n", tp.IPAddress, tp.Attempts, configuration.AttemptLimit)
-	if tp.Attempts < configuration.AttemptLimit {
+	fmt.Printf("%s Attempts: %v\n", tp.IPAddress, tp.Attempts)
+	if tp.Attempts < 2 {
 		tp.Attempts++
 
 		fmt.Printf("%s Retring process.\n", tp.IPAddress)
@@ -123,7 +124,7 @@ func reportError(tp tpStatus, err error) {
 	tp.ErrorInfo = append(tp.ErrorInfo, err.Error())
 	updateChannel <- tp
 
-	sendToELK(tp, 0)
+	helpers.SendToElastic(tp, 0)
 }
 
 func getIPTable(IPAddress string) (IPTable, error) {
@@ -155,31 +156,4 @@ func getIPTable(IPAddress string) (IPTable, error) {
 	}
 
 	return toReturn, nil
-}
-
-func sendToELK(tp tpStatus, retry int) {
-	b, _ := json.Marshal(&tp)
-
-	resp, err := http.Post(os.Getenv("ELASTICSEARCH_ADDRESS")+tp.Batch+"/"+tp.Hostname, "application/json", bytes.NewBuffer(b))
-
-	if err != nil {
-		if retry < 2 {
-			fmt.Printf("%s error posting to ELK %s. Trying again.\n", tp.IPAddress, err.Error())
-			sendToELK(tp, retry+1)
-			return
-		}
-		fmt.Printf("%s Could not report to ELK. %s \n", tp.IPAddress, err.Error())
-	} else if resp.StatusCode > 299 || resp.StatusCode < 200 {
-		fmt.Printf("%s Status Code: %v\n", tp.IPAddress, resp.StatusCode)
-		b, _ := ioutil.ReadAll(resp.Body)
-		if retry < 2 {
-			fmt.Printf("%s error posting to ELK %s. Trying again.\n", tp.IPAddress, string(b))
-			sendToELK(tp, retry+1)
-			return
-		}
-		fmt.Printf("%s Could not report to ELK. %s \n", tp.IPAddress, string(b))
-		return
-	}
-	defer resp.Body.Close()
-	fmt.Printf("%s Reported to ELK.\n", tp.IPAddress)
 }
