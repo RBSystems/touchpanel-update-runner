@@ -25,39 +25,38 @@ func getTPSteps() []step {
 	return steps
 }
 
-//Currently if this changes we need to edit the status updaters and post wait
+// Currently if this changes we need to edit the status updaters and post wait
 
-//TODO: Find a way to make this dynamic (maybe a linked list type thing? Maybe a map
-//of steps to their next steps)
+// TODO: Find a way to make this dynamic (maybe a linked list type thing? Maybe a map of steps to their next steps)
 func getTPStepNames() []string {
 	var n []string
 	n = append(n,
-		"Get IPTable",              //0
-		"CheckCurrentVersion/Date", //1
-		"Remove Old Firmware",      //2
-		"Initialize",               //3
-		"Copy Firmware",            //4
-		"Update Firmware",          //5
-		"Copy Project",             //6
-		"Move Project",             //7
-		"Load Project",             //8
-		"Reload IPTable",           //9
-		"Validate")                 //10
+		"Get IPTable",              // 0
+		"CheckCurrentVersion/Date", // 1
+		"Remove Old Firmware",      // 2
+		"Initialize",               // 3
+		"Copy Firmware",            // 4
+		"Update Firmware",          // 5
+		"Copy Project",             // 6
+		"Move Project",             // 7
+		"Load Project",             // 8
+		"Reload IPTable",           // 9
+		"Validate")                 // 10
 	return n
 }
 
-//TODO: Move all steps (0-3) to this paradigm
+// TODO: Move all steps (0-3) to this paradigm
 func evaluateNextStep(curTP tpStatus) {
 
-	//-----------------------------------------
-	//                 DEBUG
-	//-----------------------------------------
+	// -----------------------------------------
+	// DEBUG
+	// -----------------------------------------
 	// for i := 0; i < 7; i++ {
-	//			curTP.Steps[i].Completed = true
-	//	}
-	//-----------------------------------------
-	//                 /DEBUG
-	//-----------------------------------------
+	// 			curTP.Steps[i].Completed = true
+	// 	}
+	// -----------------------------------------
+	// DEBUG
+	// -----------------------------------------
 
 	stepIndx, err := curTP.GetCurStep()
 
@@ -65,7 +64,7 @@ func evaluateNextStep(curTP tpStatus) {
 		return
 	}
 
-	switch stepIndx { //determine where to go next.
+	switch stepIndx { // determine where to go next.
 	case 0:
 		completeStep(curTP, stepIndx, "Validating")
 
@@ -87,12 +86,12 @@ func evaluateNextStep(curTP tpStatus) {
 		completeStep(curTP, stepIndx, "Initializing")
 
 		go initializeTP(curTP)
-	case 3: //Initialize - next is copy firmware
+	case 3: // Initialize - next is copy firmware
 		fmt.Printf("%s Moving to copy firmware.\n", curTP.IPAddress)
 
-		//Set status and update the
+		// Set status and update the
 		completeStep(curTP, stepIndx, "Sending Firmware")
-		go sendFirmware(curTP) //ship this off concurrently - don't block.
+		go sendFirmware(curTP) // ship this off concurrently - don't block.
 	case 4:
 		fmt.Printf("%s Moving to update firmware.\n", curTP.IPAddress)
 
@@ -128,11 +127,11 @@ func evaluateNextStep(curTP tpStatus) {
 }
 
 func reloadIPTable(tp tpStatus) {
-	//veify that we actually need to reload the thing
+	// veify that we actually need to reload the thing
 	table, err := getIPTable(tp.IPAddress)
 
 	if err == nil && tp.IPTable.Equals(table) {
-		//we're done! time to validate
+		// we're done! time to validate
 		step, _ := tp.GetCurStep()
 		tp.Steps[step].Info = "No need to update. IPTable already matches."
 
@@ -167,7 +166,7 @@ func reloadIPTable(tp tpStatus) {
 func loadProject(tp tpStatus) {
 	fmt.Printf("%s Loading Project \n", tp.IPAddress)
 
-	time.Sleep(60 * time.Second) //for some reason we keep getting issues with this. It won't load the project for a while.
+	time.Sleep(60 * time.Second) // for some reason we keep getting issues with this. It won't load the project for a while.
 
 	fmt.Printf("%s Sending project load.\n", tp.IPAddress)
 	command := "projectload"
@@ -186,7 +185,7 @@ func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) { /
 	var req = telnetRequest{IPAddress: tp.IPAddress, Command: command, Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
-	resp, err := http.Post(config.TelnetServiceLocation, "application/json", bytes.NewBuffer(bits))
+	resp, err := http.Post(config.TelnetMicroserviceAddress, "application/json", bytes.NewBuffer(bits))
 
 	if err != nil {
 		return "", err
@@ -200,12 +199,12 @@ func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) { /
 	defer resp.Body.Close()
 	str := string(b)
 
-	//TODO: Potentially allow for multiple retries.
+	// TODO: Potentially allow for multiple retries.
 	if !validateCommand(str, command) {
 		if tryAgain {
 			fmt.Printf("%s bad output: %s \n", tp.IPAddress, str)
 			fmt.Printf("%s Retrying command %s ...\n", tp.IPAddress, command)
-			str, err = sendCommand(tp, command, false) //Try again, but don't re
+			str, err = sendCommand(tp, command, false) // Try again, but don't re
 		} else {
 			return "", errors.New("Issue with command: " + str)
 		}
@@ -217,10 +216,10 @@ func sendCommand(tp tpStatus, command string, tryAgain bool) (string, error) { /
 	return str, nil
 }
 
-//Send the response of a telnet command to validate success, will return true
-//if output is consistent with success, false if need to retry.
+// Send the response of a telnet command to validate success, will return true
+// if output is consistent with success, false if need to retry.
 func validateCommand(output string, command string) bool {
-	//List of responses that always denote a retry.
+	// List of responses that always denote a retry.
 	var generalBad = []string{
 		"Bad or Incomplete Command",
 		"Move Failed",
@@ -232,7 +231,7 @@ func validateCommand(output string, command string) bool {
 			return false
 		}
 	}
-	//Do command specific checking here.
+	// Do command specific checking here.
 
 	return true
 }
@@ -251,7 +250,7 @@ func moveProject(tp tpStatus) {
 	}
 	fmt.Printf("%s Move Return Value: %v\n", tp.IPAddress, resp)
 
-	//Send Reboot command
+	// Send Reboot command
 	command = "reboot"
 	resp, err = sendCommand(tp, command, true)
 
@@ -275,7 +274,7 @@ func completeStep(tp tpStatus, step int, curStatus string) {
 
 func copyProject(tp tpStatus) {
 	fmt.Printf("%s Clearing old project...\n", tp.IPAddress)
-	sendCommand(tp, "delete /ROMDISK/user/Display/*", true) //clear out space for the copy to succeed.
+	sendCommand(tp, "delete /ROMDISK/user/Display/*", true) // clear out space for the copy to succeed.
 
 	fmt.Printf("%s Submitting to copy Project.\n", tp.IPAddress)
 	sendFTPRequest(tp, "/FIRMWARE", tp.Information.ProjectLocation)
@@ -287,18 +286,18 @@ func sendFirmware(tp tpStatus) {
 }
 
 func sendFTPRequest(tp tpStatus, path string, file string) {
-	reqInfo := ftpRequest{ //our request.
+	reqInfo := ftpRequest{ // our request.
 		IPAddressHostname: tp.IPAddress,
-		CallbackAddress:   config.Hostname + "/callbacks/afterFTP",
+		CallbackAddress:   config.TouchpanelUpdateRunnerAddress + "/callbacks/afterFTP",
 		Path:              path,
 		File:              file,
 		Identifier:        tp.UUID}
 
 	b, _ := json.Marshal(&reqInfo)
 
-	//fmt.Printf("Request: %s\n", b)
+	// fmt.Printf("Request: %s\n", b)
 
-	resp, err := http.Post(config.FTPServiceLocation, "application/json", bytes.NewBuffer(b))
+	resp, err := http.Post(config.FTPMicroserviceAddress, "application/json", bytes.NewBuffer(b))
 
 	if err != nil {
 		reportError(tp, err)
@@ -313,13 +312,13 @@ func retrieveIPTable(tp tpStatus) {
 	ipTable, err := getIPTable(tp.IPAddress)
 
 	if err != nil {
-		//TODO: Decide what to do here
+		// TODO: Decide what to do here
 		fmt.Printf("%s ERROR: %s\n", tp.IPAddress, err.Error())
 		reportError(tp, err)
 		return
 	}
 	tp.IPTable = ipTable
-	//fmt.Printf("%s Got the IPtable: %s\n", tp.IPAddress, ipTable)
+	// fmt.Printf("%s Got the IPtable: %s\n", tp.IPAddress, ipTable)
 	evaluateNextStep(tp)
 }
 
@@ -341,7 +340,7 @@ func removeOldFirmware(tp tpStatus) {
 	err := removeOldPUF(tp.IPAddress, config)
 
 	if err != nil {
-		//TODO: Decide what to do here
+		// TODO: Decide what to do here
 		fmt.Printf("%s ERROR: %s\n", tp.IPAddress, err.Error())
 		reportError(tp, err)
 		return
@@ -354,7 +353,7 @@ func getPrompt(tp tpStatus) (string, error) {
 	var req = telnetRequest{IPAddress: tp.IPAddress, Command: "hostname"}
 	bits, _ := json.Marshal(req)
 
-	resp, err := http.Post(config.TelnetServiceLocation+"/getPrompt", "application/json", bytes.NewBuffer(bits))
+	resp, err := http.Post(config.TelnetMicroserviceAddress+"/getPrompt", "application/json", bytes.NewBuffer(bits))
 	if err != nil {
 		return "", err
 	}
@@ -376,16 +375,16 @@ func initializeTP(tp tpStatus) {
 	err := initialize(tp.IPAddress, config)
 
 	if err != nil {
-		//TODO: Decide what to do here
+		// TODO: Decide what to do here
 		fmt.Printf("%s ERROR: %s\n", tp.IPAddress, err.Error())
 		reportError(tp, err)
 		return
 	}
-	//curTP.CurStatus = "Waiting for post initialize reboot."
-	//wait for it to come back from initialize
+	// curTP.CurStatus = "Waiting for post initialize reboot."
+	// wait for it to come back from initialize
 	err = startWait(tp, config)
 	if err != nil {
-		//TODO: Decide what to do here
+		// TODO: Decide what to do here
 		fmt.Printf("%s ERROR: %s\n", tp.IPAddress, err.Error())
 		reportError(tp, err)
 		return
@@ -427,7 +426,7 @@ func validateTP(tp tpStatus) {
 func doValidation(tp tpStatus, ignoreTP bool) (map[string]bool, error) {
 	toReturn := make(map[string]bool)
 	needed := false
-	//we need to validate IPTable, Firmware, and Project
+	// we need to validate IPTable, Firmware, and Project
 	projVer, err := getProjectVersion(tp, 0)
 
 	if err != nil || !strings.EqualFold(projVer.ProjectDate, tp.Information.ProjectDate) {
@@ -478,15 +477,15 @@ func getProjectVersion(tp tpStatus, retry int) (modelInformation, error) {
 		return info, err
 	}
 
-	//We've tried to retrieve the vtpage at the same time as someone else. Wait for
-	//them to finish and try again.
+	// We've tried to retrieve the vtpage at the same time as someone else. Wait for
+	// them to finish and try again.
 	if strings.Contains(rawData, ":Could not") && retry < 2 {
 		fmt.Printf("%s Could not get project information, trying again in 45 seconds...\n", tp.IPAddress)
 		time.Sleep(45 * time.Second)
 		return getProjectVersion(tp, retry+1)
 	}
 
-	re := regexp.MustCompile("VTZ=(.*?)\\nDate=(.*?)\\n") //we just want project title and date
+	re := regexp.MustCompile("VTZ=(.*?)\\nDate=(.*?)\\n") // we just want project title and date
 
 	matches := re.FindStringSubmatch(string(rawData))
 

@@ -11,13 +11,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jessemillar/health"
+	"github.com/labstack/echo"
+	"github.com/labstack/echo/engine/fasthttp"
+	"github.com/labstack/echo/middleware"
 	"github.com/nu7hatch/gouuid"
-	"github.com/zenazn/goji"
 	"github.com/zenazn/goji/web"
 )
 
-var tpStatusMap map[string]tpStatus //global map of tpStatus to allow for status updates.
-var config configuration            //global configuration data, readonly.
+var tpStatusMap map[string]tpStatus // global map of tpStatus to allow for status updates.
+var config configuration            // global configuration data, readonly.
 var updateChannel chan tpStatus
 
 var validationStatus map[string]tpStatus
@@ -43,7 +46,7 @@ func buildStartTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.
 		jobInfo.IPAddress = ipaddr
 		jobInfo.Batch = batch
 
-		//TODO: Check job information
+		// TODO: Check job information
 
 		tp := startTP(jobInfo)
 
@@ -69,7 +72,7 @@ func buildStartMultTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w h
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintf(w, "%s", err.Error())
 		}
-		//TODO: Check job information
+		// TODO: Check job information
 
 		batch := time.Now().Format(time.RFC3339)
 
@@ -98,7 +101,7 @@ func buildStartMultTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w h
 	}
 }
 
-//Just update, so we can get around concurrent map write issues.
+// Just update, so we can get around concurrent map write issues.
 func updater() {
 	for true {
 		tpToUpdate := <-updateChannel
@@ -120,18 +123,18 @@ func buildTP(jobInfo jobInformation) tpStatus {
 		StartTime:     time.Now(),
 		Force:         jobInfo.Force,
 		Type:          jobInfo.Type[0],
-		Batch:         jobInfo.Batch, //batch is for uploading to elastic search
+		Batch:         jobInfo.Batch, // batch is for uploading to elastic search
 		CurrentStatus: "Submitted",
 	}
 
-	//get the Information from the API about the current firmware/Project date
+	// get the Information from the API about the current firmware/Project date
 
-	//-----------------------
-	//Temporary fix - assume everything is HD and we're getting that in from the
-	//Request body.
-	//-----------------------
+	// -----------------------
+	// Temporary fix - assume everything is HD and we're getting that in from the
+	// Request body.
+	// -----------------------
 	tp.Information = jobInfo.HDConfiguration
-	//-----------------------
+	// -----------------------
 
 	UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("avengineers.byu.edu"+tp.IPAddress+tp.RoomName))
 	tp.UUID = UUID.String()
@@ -161,7 +164,7 @@ func getTPStatus(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func startUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
-	//get the IP addresses of all the rooms.
+	// get the IP addresses of all the rooms.
 	fmt.Fprintf(w, "Not implemented.")
 }
 
@@ -233,25 +236,25 @@ func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	stepIndx, err := curTP.GetCurStep()
 
-	if err != nil { //if we're already done.
+	if err != nil { // if we're already done.
 		fmt.Printf("%s Already done error %s\n", wr.IPAddressHostname, err.Error())
-		//go ReportCompletion(curTP)
+		// go ReportCompletion(curTP)
 		return
 	}
 
 	b, _ = json.Marshal(&wr)
-	curTP.Steps[stepIndx].Info = string(b) + "\n" + curTP.Steps[stepIndx].Info //save the information about the wait into the step.
+	curTP.Steps[stepIndx].Info = string(b) + "\n" + curTP.Steps[stepIndx].Info // save the information about the wait into the step.
 
 	fmt.Printf("%s Wait status %s\n", wr.IPAddressHostname, wr.Status)
 
-	if !strings.EqualFold(wr.Status, "success") { //If we timed out.
+	if !strings.EqualFold(wr.Status, "success") { // If we timed out.
 		curTP.CurrentStatus = "Error"
 		fmt.Printf("%s Error %s\n", wr.IPAddressHostname, wr.Status)
 		reportError(curTP, errors.New("Problem waiting for restart."))
 		return
 	}
 
-	evaluateNextStep(curTP) //get the next step.
+	evaluateNextStep(curTP) // get the next step.
 }
 
 func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -266,14 +269,14 @@ func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("%s Back from FTP\n", curTP.IPAddress)
 	stepIndx, err := curTP.GetCurStep()
 
-	if err != nil { //if we're already done.
-		//go ReportCompletion(curTP)
+	if err != nil { // if we're already done.
+		// go ReportCompletion(curTP)
 		return
 	}
 
-	curTP.Steps[stepIndx].Info = string(b) //save the information about the wait into the step.
+	curTP.Steps[stepIndx].Info = string(b) // save the information about the wait into the step.
 
-	if !strings.EqualFold(fr.Status, "success") { //If we timed out.
+	if !strings.EqualFold(fr.Status, "success") { // If we timed out.
 		fmt.Printf("%s Error: %s \n %s \n", fr.IPAddressHostname, fr.Status, fr.Error)
 		curTP.CurrentStatus = "Error"
 		reportError(curTP, errors.New("Problem waiting for restart."))
@@ -282,7 +285,7 @@ func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
 
 	startWait(curTP, config)
 
-	//fmt.Printf("%s Return: %s\n", curTP.IPAddress, b)
+	// fmt.Printf("%s Return: %s\n", curTP.IPAddress, b)
 }
 
 func test(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -385,7 +388,7 @@ func main() {
 
 	config = importConfig(*ConfigFileLocation)
 
-	//Build our channels
+	// Build our channels
 	submissionChannel := make(chan tpStatus, 50)
 	updateChannel = make(chan tpStatus, 150)
 	validationChannel = make(chan tpStatus, 150)
@@ -393,34 +396,36 @@ func main() {
 	go updater()
 	go validateHelper()
 
-	//build our handlers, to have access to channels they must be wrapped
+	// build our handlers, to have access to channels they must be wrapped
 
 	startTPUpdate := buildStartTPUpdate(submissionChannel)
 
 	startMultipleTPUpdate := buildStartMultTPUpdate(submissionChannel)
 
-	goji.Post("/touchpanels/", startMultipleTPUpdate)
-	goji.Post("/touchpanels/:ipAddress", startTPUpdate)
-	goji.Put("/touchpanels/", startMultipleTPUpdate)
-	goji.Put("/touchpanels/:ipAddress", startTPUpdate)
+	port := ":8000"
+	e := echo.New()
+	e.Pre(middleware.RemoveTrailingSlash())
 
-	goji.Post("/callbacks/afterWait", postWait)
-	goji.Post("/callbacks/afterFTP", afterFTPHandle)
+	e.Get("/health", health.Check)
 
-	goji.Get("/touchpanels/:ipAddress/status", getTPStatus)
-	goji.Get("/touchpanels/:ipAddress/status/", getTPStatus)
+	e.Post("/touchpanels", startMultipleTPUpdate)
+	e.Post("/touchpanels/:ipAddress", startTPUpdate)
 
-	goji.Get("/touchpanels/status", getAllTPStatus)
-	goji.Get("/touchpanels/status/", getAllTPStatus)
-	goji.Get("/touchpanels/status/concise", getAllTPStatusConcise)
-	goji.Get("/touchpanels/status/concise/", getAllTPStatusConcise)
+	e.Put("/touchpanels", startMultipleTPUpdate)
+	e.Put("/touchpanels/:ipAddress", startTPUpdate)
 
-	goji.Post("/touchpanels/test/", test)
+	e.Post("/callbacks/afterWait", postWait)
+	e.Post("/callbacks/afterFTP", afterFTPHandle)
 
-	goji.Post("/validate/touchpanels", validate)
-	goji.Post("/validate/touchpanels/", validate)
-	goji.Get("/validate/touchpanels/status", getValidationStatus)
-	goji.Get("/validate/touchpanels/status/", getValidationStatus)
+	e.Get("/touchpanels/:ipAddress/status", getTPStatus)
+	e.Get("/touchpanels/status", getAllTPStatus)
+	e.Get("/touchpanels/status/concise", getAllTPStatusConcise)
 
-	goji.Serve()
+	e.Post("/touchpanels/test", test)
+	e.Post("/validate/touchpanels", validate)
+
+	e.Get("/validate/touchpanels/status", getValidationStatus)
+
+	fmt.Printf("AV API is listening on %s\n", port)
+	e.Run(fasthttp.New(port))
 }

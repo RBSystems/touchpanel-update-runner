@@ -40,19 +40,19 @@ func startRun(curTP tpStatus) {
 func startWait(curTP tpStatus, config configuration) error {
 	fmt.Printf("%s Sending to wait\n", curTP.IPAddress)
 
-	var req = waitRequest{IPAddressHostname: curTP.IPAddress, Port: 41795, CallbackAddress: config.Hostname + "/callbacks/afterWait"}
+	var req = waitRequest{IPAddressHostname: curTP.IPAddress, Port: 41795, CallbackAddress: config.TouchpanelUpdateRunnerAddress + "/callbacks/afterWait"}
 
 	req.Identifier = curTP.UUID
 
 	bits, _ := json.Marshal(req)
 
-	//fmt.Printf("Payload being send: \n %s \n", string(bits))
+	// fmt.Printf("Payload being send: \n %s \n", string(bits))
 
-	//we have to wait for the thing to actually restart - otherwise we'll return
-	//before it gets in a non-communicative state.
-	time.Sleep(10 * time.Second) //TODO: Shift this into our wait microservice.
+	// we have to wait for the thing to actually restart - otherwise we'll return
+	// before it gets in a non-communicative state.
+	time.Sleep(10 * time.Second) // TODO: Shift this into our wait microservice.
 
-	resp, err := http.Post(config.PauseServiceLocaiton, "application/json", bytes.NewBuffer(bits))
+	resp, err := http.Post(config.WaitForRebootMicroserviceAddress, "application/json", bytes.NewBuffer(bits))
 
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func initialize(ipAddress string, config configuration) error {
 	var req = telnetRequest{IPAddress: ipAddress, Command: "initialize", Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
-	resp, err := http.Post(config.TelnetServiceLocation+"Confirm", "application/json", bytes.NewBuffer(bits))
+	resp, err := http.Post(config.TelnetMicroserviceAddress+"Confirm", "application/json", bytes.NewBuffer(bits))
 	defer resp.Body.Close()
 	if err != nil {
 		return err
@@ -87,7 +87,7 @@ func removeOldPUF(ipAddress string, config configuration) error {
 	var req = telnetRequest{IPAddress: ipAddress, Command: "cd /ROMDISK/user/sytem\nerase *.puf", Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
-	resp, err := http.Post(config.TelnetServiceLocation, "application/json", bytes.NewBuffer(bits))
+	resp, err := http.Post(config.TelnetMicroserviceAddress, "application/json", bytes.NewBuffer(bits))
 	defer resp.Body.Close()
 	if err != nil {
 		return err
@@ -124,7 +124,7 @@ func reportError(tp tpStatus, err error) {
 
 	ipTable := false
 
-	//if we want to retry
+	// if we want to retry
 	fmt.Printf("%s Attempts: %v, Limit: %v\n", tp.IPAddress, tp.Attempts, config.AttemptLimit)
 	if tp.Attempts < config.AttemptLimit {
 		tp.Attempts++
@@ -134,15 +134,15 @@ func reportError(tp tpStatus, err error) {
 			ipTable = true
 		}
 
-		tp.Steps = getTPSteps() //reset the steps
+		tp.Steps = getTPSteps() // reset the steps
 
-		if ipTable { //if the iptable was already populated.
+		if ipTable { // if the iptable was already populated.
 			tp.Steps[0].Completed = true
 		}
 
 		updateChannel <- tp
 
-		startWait(tp, config) //Who knows what state, run a wait on them.
+		startWait(tp, config) // Who knows what state, run a wait on them.
 		return
 	}
 
@@ -156,12 +156,12 @@ func reportError(tp tpStatus, err error) {
 
 func getIPTable(IPAddress string) (IPTable, error) {
 	var toReturn = IPTable{}
-	//TODO: Make the prompt generic
+	// TODO: Make the prompt generic
 	var req = telnetRequest{IPAddress: IPAddress, Command: "iptable"}
 
 	bits, _ := json.Marshal(req)
 
-	resp, err := http.Post(config.TelnetServiceLocation, "application/json", bytes.NewBuffer(bits))
+	resp, err := http.Post(config.TelnetMicroserviceAddress, "application/json", bytes.NewBuffer(bits))
 
 	if err != nil {
 		return toReturn, err
@@ -188,7 +188,7 @@ func getIPTable(IPAddress string) (IPTable, error) {
 func sendToELK(tp tpStatus, retry int) {
 	b, _ := json.Marshal(&tp)
 
-	resp, err := http.Post(config.ESAddress+tp.Batch+"/"+tp.Hostname, "application/json", bytes.NewBuffer(b))
+	resp, err := http.Post(config.ElasticsearchAddress+tp.Batch+"/"+tp.Hostname, "application/json", bytes.NewBuffer(b))
 
 	if err != nil {
 		if retry < 2 {

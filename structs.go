@@ -3,13 +3,13 @@ package main
 import "time"
 
 type configuration struct {
-	WaitTimeout           int    //the amount of time to wait for each touchpanel to come back after a reboot. Defaults to 300
-	FTPServiceLocation    string //Locaitons for the microservices to be used.
-	TelnetServiceLocation string
-	PauseServiceLocaiton  string
-	ESAddress             string
-	Hostname              string //hostname and port of the server running the touchpanel update - to be used to format the callbacks.
-	AttemptLimit          int    //Number of times to retry a panel before reporting a failure.
+	WaitTimeout                      int    // the amount of time to wait for each touchpanel to come back after a reboot. Defaults to 300
+	FTPMicroserviceAddress           string // Locaitons for the microservices to be used.
+	TelnetMicroserviceAddress        string
+	WaitForRebootMicroserviceAddress string
+	ElasticsearchAddress             string
+	TouchpanelUpdateRunnerAddress    string // hostname and port of the server running the touchpanel update - to be used to format the callbacks.
+	AttemptLimit                     int    // Number of times to retry a panel before reporting a failure.
 }
 
 type jobInformation struct {
@@ -17,15 +17,15 @@ type jobInformation struct {
 	IPAddress            string
 	Force                bool
 	Batch                string
-	HDConfiguration      modelInformation //The information for the HDTec panels
-	TecLiteConfiguraiton modelInformation //the information for the TecLite panels
-	FliptopConfiguration modelInformation //The information for the fliptop panels.
+	HDConfiguration      modelInformation // The information for the HDTec panels
+	TecLiteConfiguraiton modelInformation // the information for the TecLite panels
+	FliptopConfiguration modelInformation // The information for the fliptop panels.
 }
 
 type multiJobInformation struct {
-	HDConfiguration      modelInformation //The information for the HDTec panels
-	TecLiteConfiguraiton modelInformation //the information for the TecLite panels
-	FliptopConfiguration modelInformation //The information for the fliptop panels.
+	HDConfiguration      modelInformation // The information for the HDTec panels
+	TecLiteConfiguraiton modelInformation // the information for the TecLite panels
+	FliptopConfiguration modelInformation // The information for the fliptop panels.
 	Info                 []jobInformation
 }
 
@@ -56,38 +56,38 @@ type ftpRequest struct {
 }
 
 type waitRequest struct {
-	IPAddressHostname string    //hostname to be pinged
-	Port              int       //port to be used when testing connection
-	Timeout           int       //Time in seconds to wait. Optional, will default to 300 seconds if not present or is 0.
-	CallbackAddress   string    //complete address to send the notification that the host is responding
-	SubmissionTime    time.Time //Will be filled by the server as the time the process started pinging
-	CompletionTime    time.Time //Will be filled by the service as the time that a) Sucessfully responded or b) timed out
-	Status            string    //Timeout or Success
-	Identifier        string    `json:",omitempty"` //Optional value to be passed in so the requester can identify the host when it's sent back.
+	IPAddressHostname string    // hostname to be pinged
+	Port              int       // port to be used when testing connection
+	Timeout           int       // Time in seconds to wait. Optional, will default to 300 seconds if not present or is 0.
+	CallbackAddress   string    // complete address to send the notification that the host is responding
+	SubmissionTime    time.Time // Will be filled by the server as the time the process started pinging
+	CompletionTime    time.Time // Will be filled by the service as the time that a) Sucessfully responded or b) timed out
+	Status            string    // Timeout or Success
+	Identifier        string    `json:",omitempty"` // Optional value to be passed in so the requester can identify the host when it's sent back.
 }
 
-//Represents information needed to update the touchpanels.
+// Represents information needed to update the touchpanels.
 type modelInformation struct {
-	FirmwareLocation string //The location of the .puf file to be loaded.
-	ProjectLocation  string //The locaton of the compiled project file to be loaded.
-	ProjectDate      string //The compile date of the project to be loaded.
-	FirmwareVersion  string //The version of the firmeware to be loaded.
+	FirmwareLocation string // The location of the .puf file to be loaded.
+	ProjectLocation  string // The locaton of the compiled project file to be loaded.
+	ProjectDate      string // The compile date of the project to be loaded.
+	FirmwareVersion  string // The version of the firmeware to be loaded.
 }
 
-//Defines one step, it's completion status, as well as any information gathered from the step.
+// Defines one step, it's completion status, as well as any information gathered from the step.
 type step struct {
-	StepName  string //Name of the step
-	Completed bool   //if the step has been completed.
-	Info      string //Any information gathered from the step. Usually the JSON body retrieved.
+	StepName  string // Name of the step
+	Completed bool   // if the step has been completed.
+	Info      string // Any information gathered from the step. Usually the JSON body retrieved.
 	Attempts  int
 }
 
-//IPTable represents an IPTable returend from a crestron device
+// IPTable represents an IPTable returend from a crestron device
 type IPTable struct {
 	Entries []IPEntry
 }
 
-//IPEntry represents a single entry in the IPTable
+// IPEntry represents a single entry in the IPTable
 type IPEntry struct {
 	CipID             string `json:"CIP_ID"`
 	Type              string
@@ -97,7 +97,7 @@ type IPEntry struct {
 	IPAddressSitename string
 }
 
-//Equals checks if two iptabels are equivalent
+// Equals checks if two iptabels are equivalent
 func (i *IPTable) Equals(compare IPTable) bool {
 	if len(i.Entries) != len(compare.Entries) {
 		return false
@@ -111,7 +111,7 @@ func (i *IPTable) Equals(compare IPTable) bool {
 	return true
 }
 
-//Equals compare two IPEntries to see if they're equivalent
+// Equals compare two IPEntries to see if they're equivalent
 func (e *IPEntry) Equals(compare IPEntry) bool {
 	if e.CipID != compare.CipID ||
 		e.DevID != compare.DevID ||
