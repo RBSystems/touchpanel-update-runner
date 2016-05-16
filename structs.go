@@ -2,16 +2,6 @@ package main
 
 import "time"
 
-type configuration struct {
-	WaitTimeout                      int    // the amount of time to wait for each touchpanel to come back after a reboot. Defaults to 300
-	FTPMicroserviceAddress           string // Locaitons for the microservices to be used.
-	TelnetMicroserviceAddress        string
-	WaitForRebootMicroserviceAddress string
-	ElasticsearchAddress             string
-	TouchpanelUpdateRunnerAddress    string // hostname and port of the server running the touchpanel update - to be used to format the callbacks.
-	AttemptLimit                     int    // Number of times to retry a panel before reporting a failure.
-}
-
 type jobInformation struct {
 	Type                 []string // HDTec, TecLite, fliptop
 	IPAddress            string

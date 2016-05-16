@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/byuoitav/roomview-ip-parser/helpers"
 	"github.com/jessemillar/health"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/engine/fasthttp"
@@ -57,26 +58,16 @@ func buildStartTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.
 	}
 }
 
-func buildStartMultTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w http.ResponseWriter, r *http.Request) {
-	return func(c web.C, w http.ResponseWriter, r *http.Request) {
-		bits, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "%s", err.Error())
-		}
-		var info multiJobInformation
+func buildStartMultipleTPUpdate(submissionChannel chan<- tpStatus) func(c echo.Context) error {
+	return func(c echo.Context) error {
+		info := multiJobInformation{}
+		c.Bind(&info)
 
-		err = json.Unmarshal(bits, &info)
-
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "%s", err.Error())
-		}
 		// TODO: Check job information
 
 		batch := time.Now().Format(time.RFC3339)
 
-		var tpList []tpStatus
+		tpList := []tpStatus{}
 		for j := range info.Info {
 			if info.Info[j].IPAddress == "" {
 				tpList = append(tpList, tpStatus{
@@ -84,6 +75,7 @@ func buildStartMultTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w h
 					ErrorInfo:     []string{"No IP Address provided."}})
 				continue
 			}
+
 			info.Info[j].HDConfiguration = info.HDConfiguration
 			info.Info[j].TecLiteConfiguraiton = info.TecLiteConfiguraiton
 			info.Info[j].FliptopConfiguration = info.FliptopConfiguration
@@ -94,14 +86,16 @@ func buildStartMultTPUpdate(submissionChannel chan<- tpStatus) func(c web.C, w h
 			tpList = append(tpList, tp)
 		}
 
-		bits, _ = json.Marshal(tpList)
-		w.Header().Add("Content-Type", "application/json")
+		bits, err := json.Marshal(tpList)
+		if err != nil {
 
-		fmt.Fprintf(w, "%s", bits)
+		}
+
+		c.JSON(http.StatusOK, bits)
 	}
 }
 
-// Just update, so we can get around concurrent map write issues.
+// Just update, so we can get around concurrent map write issues
 func updater() {
 	for true {
 		tpToUpdate := <-updateChannel
@@ -129,12 +123,8 @@ func buildTP(jobInfo jobInformation) tpStatus {
 
 	// get the Information from the API about the current firmware/Project date
 
-	// -----------------------
-	// Temporary fix - assume everything is HD and we're getting that in from the
-	// Request body.
-	// -----------------------
+	// Temporary fix - assume everything is HD
 	tp.Information = jobInfo.HDConfiguration
-	// -----------------------
 
 	UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("avengineers.byu.edu"+tp.IPAddress+tp.RoomName))
 	tp.UUID = UUID.String()
@@ -164,24 +154,8 @@ func getTPStatus(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func startUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
-	// get the IP addresses of all the rooms.
+	// get the IP addresses of all the rooms
 	fmt.Fprintf(w, "Not implemented.")
-}
-
-func importConfig(configPath string) configuration {
-	fmt.Printf("Importing the configuration information from %v\n", configPath)
-
-	f, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		panic(err)
-	}
-
-	var configurationData configuration
-	json.Unmarshal(f, &configurationData)
-
-	fmt.Printf("\n%s\n", f)
-
-	return configurationData
 }
 
 func getAllTPStatus(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -386,7 +360,7 @@ func main() {
 
 	flag.Parse()
 
-	config = importConfig(*ConfigFileLocation)
+	config = helpers.ImportConfiguration(*ConfigFileLocation)
 
 	// Build our channels
 	submissionChannel := make(chan tpStatus, 50)
@@ -400,7 +374,7 @@ func main() {
 
 	startTPUpdate := buildStartTPUpdate(submissionChannel)
 
-	startMultipleTPUpdate := buildStartMultTPUpdate(submissionChannel)
+	startMultipleTPUpdate := buildStartMultipleTPUpdate(submissionChannel)
 
 	port := ":8000"
 	e := echo.New()
