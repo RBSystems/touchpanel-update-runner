@@ -7,8 +7,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-
-	"github.com/byuoitav/touchpanel-update-runner/helpers"
 )
 
 func SendToElastic(tp tpStatus, retry int) {
@@ -19,7 +17,7 @@ func SendToElastic(tp tpStatus, retry int) {
 	if err != nil {
 		if retry < 2 {
 			fmt.Printf("%s error posting to ELK %s. Trying again.\n", tp.IPAddress, err.Error())
-			helpers.SendToElastic(tp, retry+1)
+			SendToElastic(tp, retry+1)
 			return
 		}
 		fmt.Printf("%s Could not report to ELK. %s \n", tp.IPAddress, err.Error())
@@ -28,7 +26,7 @@ func SendToElastic(tp tpStatus, retry int) {
 		b, _ := ioutil.ReadAll(resp.Body)
 		if retry < 2 {
 			fmt.Printf("%s error posting to ELK %s. Trying again.\n", tp.IPAddress, string(b))
-			helpers.SendToElastic(tp, retry+1)
+			SendToElastic(tp, retry+1)
 			return
 		}
 		fmt.Printf("%s Could not report to ELK. %s \n", tp.IPAddress, string(b))

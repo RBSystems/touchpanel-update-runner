@@ -300,7 +300,7 @@ func main() {
 	startTPUpdate := buildStartTPUpdate(submissionChannel)
 	startMultipleTPUpdate := buildStartMultipleTPUpdate(submissionChannel)
 
-	port := ":8000"
+	port := ":8003"
 	e := echo.New()
 	e.Pre(middleware.RemoveTrailingSlash())
 
