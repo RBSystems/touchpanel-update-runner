@@ -45,8 +45,7 @@ func GetTouchpanelSteps() []step {
 	return steps
 }
 
-// GetCurStatus gets the current step (the first item in the list of steps that isn't completed)
-// returns it's name/location in array. Returns an error if completed
+// GetCurStatus gets the current step (the first item in the list of steps that isn't completed) and returns it's name/location in array. Returns an error if completed
 func (t *TouchpanelStatus) GetCurrentStep() (int, error) {
 	// fmt.Printf("Steps: %v\n", t.Steps)
 	for k := range t.Steps {
@@ -97,13 +96,13 @@ func EvaluateNextStep(curTP TouchpanelStatus) {
 		fmt.Printf("%s Old Firmware removed.\n", curTP.IPAddress)
 		CompleteStep(curTP, stepIndx, "Initializing")
 
-		go initializeTP(curTP)
+		go Initialize(curTP)
 	case 3: // Initialize - next is copy firmware
 		fmt.Printf("%s Moving to copy firmware.\n", curTP.IPAddress)
 
 		// Set status and update the
 		CompleteStep(curTP, stepIndx, "Sending Firmware")
-		go sendFirmware(curTP) // ship this off concurrently - don't block
+		go sendFirmware(curTP) // Ship this off concurrently - don't block
 	case 4:
 		fmt.Printf("%s Moving to update firmware.\n", curTP.IPAddress)
 

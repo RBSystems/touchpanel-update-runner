@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/byuoitav/telnet-microservice/helpers"
-	"github.com/byuoitav/touchpanel-update-runner/packages/crestron"
 )
 
 func reloadIPTable(tp TouchpanelStatus) {
@@ -215,26 +214,6 @@ func getPrompt(tp TouchpanelStatus) (string, error) {
 	err = json.Unmarshal(b, &respValue)
 
 	return respValue.Prompt, nil
-}
-
-func initializeTP(tp TouchpanelStatus) {
-	err := crestron.Initialize(tp.IPAddress)
-
-	if err != nil {
-		// TODO: Decide what to do here
-		fmt.Printf("%s ERROR: %s\n", tp.IPAddress, err.Error())
-		reportError(tp, err)
-		return
-	}
-
-	// wait for it to come back from initialize
-	err = startWait(tp)
-	if err != nil {
-		// TODO: Decide what to do here
-		fmt.Printf("%s ERROR: %s\n", tp.IPAddress, err.Error())
-		reportError(tp, err)
-		return
-	}
 }
 
 // Involved in the validation endpoints

@@ -32,40 +32,6 @@ func startUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Not implemented.")
 }
 
-func getAllTPStatus(c web.C, w http.ResponseWriter, r *http.Request) {
-	var info []TouchpanelStatus
-
-	for _, v := range TouchpanelStatusMap {
-		info = append(info, v)
-	}
-
-	b, _ := json.Marshal(&info)
-
-	w.Header().Add("Content-Type", "application/json")
-	fmt.Fprintf(w, "%s", string(b))
-}
-
-func getAllTPStatusConcise(c web.C, w http.ResponseWriter, r *http.Request) {
-	var info []string
-	info = append(info, "IP\tStatus\tError\n")
-
-	for _, v := range TouchpanelStatusMap {
-		if len(v.ErrorInfo) > 0 {
-			str := v.IPAddress + "\t" + v.CurrentStatus + "\t" + v.ErrorInfo[0]
-			info = append(info, str)
-		} else {
-			str := v.IPAddress + "\t" + v.CurrentStatus + "\t" + ""
-			info = append(info, str)
-		}
-
-	}
-
-	b, _ := json.Marshal(&info)
-
-	w.Header().Add("Content-Type", "application/json")
-	fmt.Fprintf(w, "%s", string(b))
-}
-
 func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -229,8 +195,8 @@ func main() {
 	e.Get("/health", health.Check)
 
 	// Touchpanels
-	e.Get("/touchpanel/status", getAllTPStatus)
-	e.Get("/touchpanel/status/concise", getAllTPStatusConcise)
+	e.Get("/touchpanel/status", controllers.GetAllTPStatus)
+	e.Get("/touchpanel/status/concise", controllers.GetAllTPStatusConcise)
 	e.Get("/touchpanel/:ipAddress/status", getTPStatus)
 
 	e.Post("/touchpanel", startMultipleTPUpdate)
