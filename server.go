@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
 
+	"github.com/byuoitav/touchpanel-update-runner/controllers"
+	"github.com/byuoitav/touchpanel-update-runner/helpers"
 	"github.com/jessemillar/health"
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/engine/fasthttp"
@@ -18,17 +19,11 @@ import (
 	"github.com/zenazn/goji/web"
 )
 
-var tpStatusMap map[string]tpStatus // Global map of tpStatus to allow for status updates
-var updateChannel chan tpStatus
-
-var validationStatus map[string]tpStatus
-var validationChannel chan tpStatus
-
 // Just update, so we can get around concurrent map write issues
 func updater() {
 	for true {
-		tpToUpdate := <-updateChannel
-		tpStatusMap[tpToUpdate.UUID] = tpToUpdate
+		tpToUpdate := <-UpdateChannel
+		TouchpanelStatusMap[tpToUpdate.UUID] = tpToUpdate
 	}
 }
 
@@ -38,9 +33,9 @@ func startUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
 }
 
 func getAllTPStatus(c web.C, w http.ResponseWriter, r *http.Request) {
-	var info []tpStatus
+	var info []TouchpanelStatus
 
-	for _, v := range tpStatusMap {
+	for _, v := range TouchpanelStatusMap {
 		info = append(info, v)
 	}
 
@@ -54,7 +49,7 @@ func getAllTPStatusConcise(c web.C, w http.ResponseWriter, r *http.Request) {
 	var info []string
 	info = append(info, "IP\tStatus\tError\n")
 
-	for _, v := range tpStatusMap {
+	for _, v := range TouchpanelStatusMap {
 		if len(v.ErrorInfo) > 0 {
 			str := v.IPAddress + "\t" + v.CurrentStatus + "\t" + v.ErrorInfo[0]
 			info = append(info, str)
@@ -81,7 +76,7 @@ func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(b, &wr)
 
 	fmt.Printf("%s Done Waiting.\n", wr.IPAddressHostname)
-	curTP := tpStatusMap[wr.Identifier]
+	curTP := TouchpanelStatusMap[wr.Identifier]
 
 	if curTP.UUID == "" {
 		fmt.Printf("%s UUID not in map.\n", wr.IPAddressHostname)
@@ -107,7 +102,7 @@ func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	evaluateNextStep(curTP) // get the next step
+	EvaluateNextStep(curTP) // get the next step
 }
 
 func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -117,7 +112,7 @@ func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
 	var fr ftpRequest
 	json.Unmarshal(b, &fr)
 
-	curTP := tpStatusMap[fr.Identifier]
+	curTP := TouchpanelStatusMap[fr.Identifier]
 
 	fmt.Printf("%s Back from FTP\n", curTP.IPAddress)
 	stepIndx, err := curTP.GetCurrentStep()
@@ -168,41 +163,20 @@ func validate(c web.C, w http.ResponseWriter, r *http.Request) {
 		tp.IPAddress = strings.TrimSpace(tp.IPAddress)
 		tp.CurrentStatus = "In progress"
 		tp.Hostname = "TEMP " + tp.UUID
-		validationChannel <- tp
+		helpers.ValidationChannel <- tp
 
 		go validateFunction(tp, 0)
 	}
 }
 
-func getValidationStatus(c web.C, w http.ResponseWriter, r *http.Request) {
-	hostnames := []string{}
-	values := make(map[string]tpStatus)
-
-	for _, v := range validationStatus {
-		values[v.Hostname] = v
-		hostnames = append(hostnames, v.Hostname)
-	}
-
-	sort.Strings(hostnames)
-	fmt.Printf("Length of Map: %v\n", len(validationStatus))
-	fmt.Printf("Length of hostnames: %v\n", len(hostnames))
-
-	w.Header().Add("Content-Type", "text/html")
-
-	for h := range hostnames {
-		cur := values[hostnames[h]]
-		fmt.Fprintf(w, "%s \t\t\t %s \t\t\t %s \n", cur.Hostname, cur.IPAddress, cur.CurrentStatus)
-	}
-}
-
 func validateHelper() {
 	for true {
-		toAdd := <-validationChannel
+		toAdd := <-helpers.ValidationChannel
 		validationStatus[toAdd.IPAddress] = toAdd
 	}
 }
 
-func validateFunction(tp tpStatus, retries int) {
+func validateFunction(tp TouchpanelStatus, retries int) {
 	need, str := validateNeed(tp, true)
 	hostname, _ := helpers.SendCommand(tp, "hostname", true)
 
@@ -222,24 +196,24 @@ func validateFunction(tp tpStatus, retries int) {
 	if need {
 		fmt.Printf("%s needed.", tp.IPAddress)
 		tp.CurrentStatus = "Needed: " + str
-		validationChannel <- tp
+		helpers.ValidationChannel <- tp
 	} else {
 		fmt.Printf("%s Not needed.", tp.IPAddress)
 		tp.CurrentStatus = "Up to date."
-		validationChannel <- tp
+		helpers.ValidationChannel <- tp
 	}
 }
 
 func main() {
-	tpStatusMap = make(map[string]tpStatus)
-	validationStatus = make(map[string]tpStatus)
+	TouchpanelStatusMap = make(map[string]TouchpanelStatus)
+	validationStatus = make(map[string]TouchpanelStatus)
 
 	flag.Parse()
 
 	// Build our channels
-	submissionChannel := make(chan tpStatus, 50)
-	updateChannel = make(chan tpStatus, 150)
-	validationChannel = make(chan tpStatus, 150)
+	submissionChannel := make(chan TouchpanelStatus, 50)
+	helpers.UpdateChannel = make(chan TouchpanelStatus, 150)
+	helpers.ValidationChannel = make(chan TouchpanelStatus, 150)
 
 	go updater()
 	go validateHelper()
@@ -271,7 +245,7 @@ func main() {
 	e.Post("/callback/afterFTP", afterFTPHandle)
 
 	// Validation
-	e.Get("/validate/touchpanels/status", getValidationStatus)
+	e.Get("/validate/touchpanels/status", controllers.GetValidationStatus)
 
 	e.Post("/validate/touchpanels", validate)
 

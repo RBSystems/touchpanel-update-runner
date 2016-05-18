@@ -9,7 +9,7 @@ import (
 	"github.com/labstack/echo"
 )
 
-func startTP(jobInfo jobInformation) tpStatus {
+func startTP(jobInfo jobInformation) TouchpanelStatus {
 	tp := BuildTouchpanel(jobInfo)
 	fmt.Printf("%s Starting.\n", tp.IPAddress)
 	go StartRun(tp)
@@ -17,7 +17,7 @@ func startTP(jobInfo jobInformation) tpStatus {
 	return tp
 }
 
-func BuildControllerStartTouchpanelUpdate(submissionChannel chan<- tpStatus) func(c echo.Context) error {
+func BuildControllerStartTouchpanelUpdate(submissionChannel chan<- TouchpanelStatus) func(c echo.Context) error {
 	return func(c echo.Context) error {
 		ipaddr := c.Param("ipAddress")
 		batch := time.Now().Format(time.RFC3339)
@@ -36,7 +36,7 @@ func BuildControllerStartTouchpanelUpdate(submissionChannel chan<- tpStatus) fun
 	}
 }
 
-func BuildStartMultipleTPUpdate(submissionChannel chan<- tpStatus) func(c echo.Context) error {
+func BuildStartMultipleTPUpdate(submissionChannel chan<- TouchpanelStatus) func(c echo.Context) error {
 	return func(c echo.Context) error {
 		info := multiJobInformation{}
 		c.Bind(&info)
@@ -45,10 +45,10 @@ func BuildStartMultipleTPUpdate(submissionChannel chan<- tpStatus) func(c echo.C
 
 		batch := time.Now().Format(time.RFC3339)
 
-		tpList := []tpStatus{}
+		tpList := []TouchpanelStatus{}
 		for j := range info.Info {
 			if info.Info[j].IPAddress == "" {
-				tpList = append(tpList, tpStatus{
+				tpList = append(tpList, TouchpanelStatus{
 					CurrentStatus: "Could not start, no IP Address provided.",
 					ErrorInfo:     []string{"No IP Address provided."}})
 				continue

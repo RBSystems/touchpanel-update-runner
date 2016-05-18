@@ -17,7 +17,7 @@ type TelnetRequest struct {
 	Prompt    string
 }
 
-func SendCommand(tp tpStatus, command string, tryAgain bool) (string, error) { // Sends telnet commands
+func SendCommand(tp TouchpanelStatus, command string, tryAgain bool) (string, error) { // Sends telnet commands
 	var req = TelnetRequest{IPAddress: tp.IPAddress, Command: command, Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 

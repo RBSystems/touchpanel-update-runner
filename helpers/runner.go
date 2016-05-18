@@ -10,37 +10,33 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/byuoitav/telnet-microservice/helpers"
 )
 
 // Starts the touchpanel update process
-func StartRun(curTP tpStatus) {
+func StartRun(curTP TouchpanelStatus) {
 	curTP.Attempts++
 
 	curTP.Steps = GetTouchpanelSteps()
-
 	curTP.Attempts = 0 // We haven't tried yet
 
 	// Get the hostname
-
-	response, err := helpers.SendCommand(curTP, "hostname", true)
-
+	response, err := SendCommand(curTP, "hostname", true)
 	if err != nil {
 		fmt.Printf("Could not retrieve hostname")
 	}
+
 	if strings.Contains(response, "Host Name:") {
 		response = strings.Split(response, "Host Name:")[1]
 	}
 
 	curTP.Hostname = strings.TrimSpace(response)
 
-	updateChannel <- curTP
+	UpdateChannel <- curTP
 
-	evaluateNextStep(curTP)
+	EvaluateNextStep(curTP)
 }
 
-func startWait(curTP tpStatus) error {
+func startWait(curTP TouchpanelStatus) error {
 	fmt.Printf("%s Sending to wait\n", curTP.IPAddress)
 
 	var req = waitRequest{IPAddressHostname: curTP.IPAddress, Port: 41795, CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterWait"}
@@ -69,27 +65,27 @@ func startWait(curTP tpStatus) error {
 	return nil
 }
 
-func reportNotNeeded(tp tpStatus, status string) {
+func reportNotNeeded(tp TouchpanelStatus, status string) {
 	fmt.Printf("%s Not needed\n", tp.IPAddress)
 
 	tp.CurrentStatus = status
 	tp.EndTime = time.Now()
-	updateChannel <- tp
+	UpdateChannel <- tp
 
 	SendToElastic(tp, 0)
 }
 
-func reportSuccess(tp tpStatus) {
+func reportSuccess(tp TouchpanelStatus) {
 	fmt.Printf("%s Success!\n", tp.IPAddress)
 
 	tp.CurrentStatus = "Success"
 	tp.EndTime = time.Now()
-	updateChannel <- tp
+	UpdateChannel <- tp
 
 	SendToElastic(tp, 0)
 }
 
-func reportError(tp tpStatus, err error) {
+func reportError(tp TouchpanelStatus, err error) {
 	fmt.Printf("%s Reporting a failure  %s ...\n", tp.IPAddress, err.Error())
 
 	ipTable := false
@@ -110,7 +106,7 @@ func reportError(tp tpStatus, err error) {
 			tp.Steps[0].Completed = true
 		}
 
-		updateChannel <- tp
+		UpdateChannel <- tp
 
 		startWait(tp) // Who knows what state, run a wait on them
 		return
@@ -119,7 +115,7 @@ func reportError(tp tpStatus, err error) {
 	tp.CurrentStatus = "Error"
 	tp.EndTime = time.Now()
 	tp.ErrorInfo = append(tp.ErrorInfo, err.Error())
-	updateChannel <- tp
+	UpdateChannel <- tp
 
 	SendToElastic(tp, 0)
 }

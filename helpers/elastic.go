@@ -9,7 +9,7 @@ import (
 	"os"
 )
 
-func SendToElastic(tp tpStatus, retry int) {
+func SendToElastic(tp TouchpanelStatus, retry int) {
 	b, _ := json.Marshal(&tp)
 	resp, err := http.Post(os.Getenv("ELASTICSEARCH_ADDRESS")+"/tpupdates/"+tp.Batch+"/"+tp.Hostname, "application/json", bytes.NewBuffer(b))
 

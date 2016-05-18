@@ -10,8 +10,8 @@ import (
 	"github.com/zenazn/goji/web"
 )
 
-func BuildTouchpanel(jobInfo jobInformation) tpStatus {
-	tp := tpStatus{
+func BuildTouchpanel(jobInfo jobInformation) TouchpanelStatus {
+	tp := TouchpanelStatus{
 		IPAddress:     jobInfo.IPAddress,
 		Steps:         GetTouchpanelSteps(),
 		StartTime:     time.Now(),
@@ -35,9 +35,9 @@ func BuildTouchpanel(jobInfo jobInformation) tpStatus {
 func GetTPStatus(c web.C, w http.ResponseWriter, r *http.Request) {
 	ip := c.URLParams["ipAddress"]
 
-	var toReturn []tpStatus
+	var toReturn []TouchpanelStatus
 
-	for _, v := range tpStatusMap {
+	for _, v := range TouchpanelStatusMap {
 		if v.IPAddress == ip {
 			toReturn = append(toReturn, v)
 		}

@@ -13,90 +13,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/byuoitav/telnet-microservice/helpers"
 	"github.com/byuoitav/touchpanel-update-runner/packages/crestron"
 )
 
-// TODO: Move all steps (0-3) to this paradigm
-func evaluateNextStep(curTP tpStatus) {
-	// -----------------------------------------
-	// DEBUG
-	// -----------------------------------------
-	// for i := 0; i < 7; i++ {
-	// 			curTP.Steps[i].Completed = true
-	// 	}
-	// -----------------------------------------
-	// DEBUG
-	// -----------------------------------------
-
-	stepIndx, err := curTP.GetCurrentStep()
-
-	if err != nil {
-		return
-	}
-
-	switch stepIndx { // determine where to go next
-	case 0:
-		completeStep(curTP, stepIndx, "Validating")
-
-		go retrieveIPTable(curTP)
-	case 1:
-		fmt.Printf("%s We've gotten IP Table.\n", curTP.IPAddress)
-		need, str := validateNeed(curTP, false)
-		if !need {
-			fmt.Printf("%s Not needed: %s\n", curTP.IPAddress, str)
-			reportNotNeeded(curTP, "Not Needed: "+str)
-			return
-		}
-
-		fmt.Printf("%s Done validating.\n", curTP.IPAddress)
-		completeStep(curTP, stepIndx, "Removing old Firmware")
-		go removeOldFirmware(curTP)
-	case 2:
-		fmt.Printf("%s Old Firmware removed.\n", curTP.IPAddress)
-		completeStep(curTP, stepIndx, "Initializing")
-
-		go initializeTP(curTP)
-	case 3: // Initialize - next is copy firmware
-		fmt.Printf("%s Moving to copy firmware.\n", curTP.IPAddress)
-
-		// Set status and update the
-		completeStep(curTP, stepIndx, "Sending Firmware")
-		go sendFirmware(curTP) // ship this off concurrently - don't block
-	case 4:
-		fmt.Printf("%s Moving to update firmware.\n", curTP.IPAddress)
-
-		completeStep(curTP, stepIndx, "Updating Firmware")
-		go updateFirmware(curTP)
-	case 5:
-		fmt.Printf("%s Done updating firmware.\n", curTP.IPAddress)
-		completeStep(curTP, stepIndx, "Sending Project")
-
-		go copyProject(curTP)
-	case 6:
-		fmt.Printf("%s Project copied\n", curTP.IPAddress)
-		completeStep(curTP, stepIndx, "Moving Project")
-
-		go moveProject(curTP)
-	case 7:
-		fmt.Printf("%s Project Moved\n", curTP.IPAddress)
-		completeStep(curTP, stepIndx, "Loading Project")
-
-		go loadProject(curTP)
-	case 8:
-		fmt.Printf("%s Project Loaded\n", curTP.IPAddress)
-		completeStep(curTP, stepIndx, "Reload IPTable")
-
-		go reloadIPTable(curTP)
-	case 9:
-		fmt.Printf("%s IPTable loaded\n", curTP.IPAddress)
-		completeStep(curTP, stepIndx, "Validating")
-
-		go validateTP(curTP)
-	default:
-	}
-}
-
-func reloadIPTable(tp tpStatus) {
+func reloadIPTable(tp TouchpanelStatus) {
 	// Verify that we actually need to reload
 	table, err := getIPTable(tp.IPAddress)
 
@@ -104,7 +25,7 @@ func reloadIPTable(tp tpStatus) {
 		step, _ := tp.GetCurrentStep()
 		tp.Steps[step].Info = "No need to update. IPTable already matches."
 
-		evaluateNextStep(tp)
+		EvaluateNextStep(tp)
 	}
 
 	for i := range tp.IPTable.Entries {
@@ -129,10 +50,10 @@ func reloadIPTable(tp tpStatus) {
 		}
 	}
 
-	evaluateNextStep(tp)
+	EvaluateNextStep(tp)
 }
 
-func loadProject(tp tpStatus) {
+func loadProject(tp TouchpanelStatus) {
 	fmt.Printf("%s Loading Project \n", tp.IPAddress)
 
 	time.Sleep(60 * time.Second) // for some reason we keep getting issues with this. It won't load the project for a while
@@ -171,7 +92,7 @@ func validateCommand(output string, command string) bool {
 	return true
 }
 
-func moveProject(tp tpStatus) {
+func moveProject(tp TouchpanelStatus) {
 	fmt.Printf("%s Moving Project\n", tp.IPAddress)
 
 	filename := filepath.Base(tp.Information.ProjectLocation)
@@ -199,15 +120,7 @@ func moveProject(tp tpStatus) {
 	startWait(tp)
 }
 
-// Sends a complete step to the update channel
-func completeStep(tp tpStatus, step int, curStatus string) {
-	tp.Steps[step].Completed = true
-	tp.CurrentStatus = curStatus
-
-	updateChannel <- tp
-}
-
-func copyProject(tp tpStatus) {
+func copyProject(tp TouchpanelStatus) {
 	fmt.Printf("%s Clearing old project...\n", tp.IPAddress)
 	helpers.SendCommand(tp, "delete /ROMDISK/user/Display/*", true) // clear out space for the copy to succeed
 
@@ -215,12 +128,12 @@ func copyProject(tp tpStatus) {
 	sendFTPRequest(tp, "/FIRMWARE", tp.Information.ProjectLocation)
 }
 
-func sendFirmware(tp tpStatus) {
+func sendFirmware(tp TouchpanelStatus) {
 	fmt.Printf("%s Submitting to move Firmware.\n", tp.IPAddress)
 	sendFTPRequest(tp, "/FIRMWARE", tp.Information.FirmwareLocation)
 }
 
-func sendFTPRequest(tp tpStatus, path string, file string) {
+func sendFTPRequest(tp TouchpanelStatus, path string, file string) {
 	reqInfo := ftpRequest{ // our request
 		IPAddressHostname: tp.IPAddress,
 		CallbackAddress:   os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterFTP",
@@ -241,7 +154,7 @@ func sendFTPRequest(tp tpStatus, path string, file string) {
 	fmt.Printf("%s Submission response: %s\n", tp.IPAddress, b)
 }
 
-func retrieveIPTable(tp tpStatus) {
+func retrieveIPTable(tp TouchpanelStatus) {
 	ipTable, err := getIPTable(tp.IPAddress)
 
 	if err != nil {
@@ -252,10 +165,10 @@ func retrieveIPTable(tp tpStatus) {
 	}
 	tp.IPTable = ipTable
 	// fmt.Printf("%s Got the IPtable: %s\n", tp.IPAddress, ipTable)
-	evaluateNextStep(tp)
+	EvaluateNextStep(tp)
 }
 
-func updateFirmware(tp tpStatus) {
+func updateFirmware(tp TouchpanelStatus) {
 	fmt.Printf("%s Firmware Update \n", tp.IPAddress)
 
 	resp, err := helpers.SendCommand(tp, "puf", true)
@@ -269,7 +182,7 @@ func updateFirmware(tp tpStatus) {
 	startWait(tp)
 }
 
-func removeOldFirmware(tp tpStatus) {
+func removeOldFirmware(tp TouchpanelStatus) {
 	err := removeOldPUF(tp.IPAddress)
 
 	if err != nil {
@@ -279,10 +192,10 @@ func removeOldFirmware(tp tpStatus) {
 		return
 	}
 
-	evaluateNextStep(tp)
+	EvaluateNextStep(tp)
 }
 
-func getPrompt(tp tpStatus) (string, error) {
+func getPrompt(tp TouchpanelStatus) (string, error) {
 	var req = TelnetRequest{IPAddress: tp.IPAddress, Command: "hostname"}
 	bits, _ := json.Marshal(req)
 
@@ -304,7 +217,7 @@ func getPrompt(tp tpStatus) (string, error) {
 	return respValue.Prompt, nil
 }
 
-func initializeTP(tp tpStatus) {
+func initializeTP(tp TouchpanelStatus) {
 	err := crestron.Initialize(tp.IPAddress)
 
 	if err != nil {
@@ -325,7 +238,7 @@ func initializeTP(tp tpStatus) {
 }
 
 // Involved in the validation endpoints
-func validateTP(tp tpStatus) {
+func validateTP(tp TouchpanelStatus) {
 	m, err := doValidation(tp, false)
 	if err == nil {
 		reportSuccess(tp)
@@ -356,7 +269,7 @@ func validateTP(tp tpStatus) {
 }
 
 // Called from validateTP
-func doValidation(tp tpStatus, ignoreTP bool) (map[string]bool, error) {
+func doValidation(tp TouchpanelStatus, ignoreTP bool) (map[string]bool, error) {
 	toReturn := make(map[string]bool)
 	needed := false
 	// we need to validate IPTable, Firmware, and Project
@@ -400,7 +313,7 @@ func doValidation(tp tpStatus, ignoreTP bool) (map[string]bool, error) {
 	return toReturn, nil
 }
 
-func getProjectVersion(tp tpStatus, retry int) (modelInformation, error) {
+func getProjectVersion(tp TouchpanelStatus, retry int) (modelInformation, error) {
 	fmt.Printf("%s Getting project info...\n", tp.IPAddress)
 	info := modelInformation{}
 
@@ -437,7 +350,7 @@ func getProjectVersion(tp tpStatus, retry int) (modelInformation, error) {
 	return info, nil
 }
 
-func getFirmwareVersion(tp tpStatus) (string, error) {
+func getFirmwareVersion(tp TouchpanelStatus) (string, error) {
 	fmt.Printf("%s Getting Firmware Version\n", tp.IPAddress)
 
 	data, err := helpers.SendCommand(tp, "ver", true)
@@ -461,7 +374,7 @@ func getFirmwareVersion(tp tpStatus) (string, error) {
 
 // Checks to make sure the device in question is a TecHD touch panel
 // Bypassed in final validation after all other steps have suceeded (firmware installed, IP tables, etc.)
-func validateNeed(tp tpStatus, ignoreTP bool) (bool, string) {
+func validateNeed(tp TouchpanelStatus, ignoreTP bool) (bool, string) {
 	prompt, err := getPrompt(tp)
 
 	fmt.Printf("%s Prompt Returned was: %s \n", tp.IPAddress, prompt)
