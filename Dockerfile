@@ -9,4 +9,4 @@ RUN go install -v
 
 CMD ["/go/bin/touchpanel-update-runner"]
 
-EXPOSE 8003
+EXPOSE 8004

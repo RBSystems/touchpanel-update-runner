@@ -9,4 +9,4 @@ echo "Building container"
 docker build -t byuoitav/touchpanel-update-runner .
 
 echo "Starting the new version"
-docker run -d --restart=always --name touchpanel-update-runner -p 8003:8003 byuoitav/touchpanel-update-runner:latest
+docker run -d --restart=always --name touchpanel-update-runner -p 8004:8004 byuoitav/touchpanel-update-runner:latest
