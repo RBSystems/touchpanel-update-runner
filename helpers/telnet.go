@@ -39,7 +39,7 @@ func SendCommand(tp TouchpanelStatus, command string, tryAgain bool) (string, er
 		if tryAgain {
 			fmt.Printf("%s bad output: %s \n", tp.IPAddress, str)
 			fmt.Printf("%s Retrying command %s ...\n", tp.IPAddress, command)
-			str, _ = helpers.SendCommand(tp, command, false) // Try again, but don't report
+			str, _ = SendCommand(tp, command, false) // Try again, but don't report
 		} else {
 			return "", errors.New("Issue with command: " + str)
 		}
@@ -49,4 +49,26 @@ func SendCommand(tp TouchpanelStatus, command string, tryAgain bool) (string, er
 	tp.Steps[step].Info = str
 
 	return str, nil
+}
+
+func GetPrompt(tp TouchpanelStatus) (string, error) {
+	var req = TelnetRequest{IPAddress: tp.IPAddress, Command: "hostname"}
+	bits, _ := json.Marshal(req)
+
+	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS")+"/getPrompt", "application/json", bytes.NewBuffer(bits))
+	if err != nil {
+		return "", err
+	}
+
+	b, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		return "", err
+	}
+
+	respValue := TelnetRequest{}
+
+	err = json.Unmarshal(b, &respValue)
+
+	return respValue.Prompt, nil
 }
