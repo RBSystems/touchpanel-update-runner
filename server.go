@@ -15,7 +15,6 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/engine/fasthttp"
 	"github.com/labstack/echo/middleware"
-	"github.com/nu7hatch/gouuid"
 	"github.com/zenazn/goji/web"
 )
 
@@ -31,56 +30,6 @@ func updater() {
 		tpToUpdate := <-updateChannel
 		tpStatusMap[tpToUpdate.UUID] = tpToUpdate
 	}
-}
-
-func startTP(jobInfo jobInformation) tpStatus {
-	tp := buildTP(jobInfo)
-	fmt.Printf("%s Starting.\n", tp.IPAddress)
-	go startRun(tp)
-	return tp
-}
-
-func buildTP(jobInfo jobInformation) tpStatus {
-	tp := tpStatus{
-		IPAddress:     jobInfo.IPAddress,
-		Steps:         getTPSteps(),
-		StartTime:     time.Now(),
-		Force:         jobInfo.Force,
-		Type:          jobInfo.Type[0],
-		Batch:         jobInfo.Batch, // batch is for uploading to elastic search
-		CurrentStatus: "Submitted",
-	}
-
-	// get the Information from the API about the current firmware/Project date
-
-	// Temporary fix - assume everything is Tec HD
-	tp.Information = jobInfo.HDConfiguration
-
-	UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("avengineers.byu.edu"+tp.IPAddress+tp.RoomName))
-	tp.UUID = UUID.String()
-
-	return tp
-}
-
-func getTPStatus(c web.C, w http.ResponseWriter, r *http.Request) {
-	ip := c.URLParams["ipAddress"]
-
-	var toReturn []tpStatus
-
-	for _, v := range tpStatusMap {
-		if v.IPAddress == ip {
-			toReturn = append(toReturn, v)
-		}
-	}
-
-	b, err := json.Marshal(toReturn)
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "ERROR: %s\n", err.Error())
-	}
-	w.Header().Add("content-type", "application/json")
-	fmt.Fprintf(w, "%s", string(b))
 }
 
 func startUpdate(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -138,7 +87,7 @@ func postWait(c web.C, w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("%s UUID not in map.\n", wr.IPAddressHostname)
 	}
 
-	stepIndx, err := curTP.GetCurStep()
+	stepIndx, err := curTP.GetCurrentStep()
 
 	if err != nil { // if we're already done
 		fmt.Printf("%s Already done error %s\n", wr.IPAddressHostname, err.Error())
@@ -171,7 +120,7 @@ func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
 	curTP := tpStatusMap[fr.Identifier]
 
 	fmt.Printf("%s Back from FTP\n", curTP.IPAddress)
-	stepIndx, err := curTP.GetCurStep()
+	stepIndx, err := curTP.GetCurrentStep()
 
 	if err != nil { // if we're already done
 		// go ReportCompletion(curTP)
@@ -188,8 +137,6 @@ func afterFTPHandle(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 
 	startWait(curTP, configuration)
-
-	// fmt.Printf("%s Return: %s\n", curTP.IPAddress, b)
 }
 
 func test(c web.C, w http.ResponseWriter, r *http.Request) {
@@ -217,11 +164,12 @@ func validate(c web.C, w http.ResponseWriter, r *http.Request) {
 
 		info.Info[i].Batch = batch
 		info.Info[i].HDConfiguration = info.HDConfiguration
-		tp := buildTP(info.Info[i])
+		tp := BuildTouchpanel(info.Info[i])
 		tp.IPAddress = strings.TrimSpace(tp.IPAddress)
 		tp.CurrentStatus = "In progress"
 		tp.Hostname = "TEMP " + tp.UUID
 		validationChannel <- tp
+
 		go validateFunction(tp, 0)
 	}
 }
@@ -256,7 +204,7 @@ func validateHelper() {
 
 func validateFunction(tp tpStatus, retries int) {
 	need, str := validateNeed(tp, true)
-	hostname, _ := sendCommand(tp, "hostname", true)
+	hostname, _ := helpers.SendCommand(tp, "hostname", true)
 
 	if hostname != "" {
 		hostname = strings.Split(hostname, ":")[1]
@@ -297,10 +245,10 @@ func main() {
 	go validateHelper()
 
 	// Build our handlers--to have access to channels they must be wrapped
-	startTPUpdate := buildStartTPUpdate(submissionChannel)
+	startTPUpdate := BuildControllerStartTouchpanelUpdate(submissionChannel)
 	startMultipleTPUpdate := buildStartMultipleTPUpdate(submissionChannel)
 
-	port := ":8003"
+	port := ":8004"
 	e := echo.New()
 	e.Pre(middleware.RemoveTrailingSlash())
 

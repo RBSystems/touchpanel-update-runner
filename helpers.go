@@ -16,38 +16,6 @@ import (
 	"github.com/byuoitav/touchpanel-update-runner/packages/crestron"
 )
 
-func getTPSteps() []step {
-	var steps []step
-
-	names := getTPStepNames()
-
-	for indx := range names {
-		steps = append(steps, step{StepName: names[indx], Completed: false})
-	}
-
-	return steps
-}
-
-// Currently if this changes we need to edit the status updaters and post wait
-
-// TODO: Find a way to make this dynamic (maybe a linked list type thing? Maybe a map of steps to their next steps)
-func getTPStepNames() []string {
-	var n []string
-	n = append(n,
-		"Get IPTable",              // 0
-		"CheckCurrentVersion/Date", // 1
-		"Remove Old Firmware",      // 2
-		"Initialize",               // 3
-		"Copy Firmware",            // 4
-		"Update Firmware",          // 5
-		"Copy Project",             // 6
-		"Move Project",             // 7
-		"Load Project",             // 8
-		"Reload IPTable",           // 9
-		"Validate")                 // 10
-	return n
-}
-
 // TODO: Move all steps (0-3) to this paradigm
 func evaluateNextStep(curTP tpStatus) {
 	// -----------------------------------------
@@ -60,7 +28,7 @@ func evaluateNextStep(curTP tpStatus) {
 	// DEBUG
 	// -----------------------------------------
 
-	stepIndx, err := curTP.GetCurStep()
+	stepIndx, err := curTP.GetCurrentStep()
 
 	if err != nil {
 		return
@@ -133,7 +101,7 @@ func reloadIPTable(tp tpStatus) {
 	table, err := getIPTable(tp.IPAddress)
 
 	if err == nil && tp.IPTable.Equals(table) {
-		step, _ := tp.GetCurStep()
+		step, _ := tp.GetCurrentStep()
 		tp.Steps[step].Info = "No need to update. IPTable already matches."
 
 		evaluateNextStep(tp)
@@ -148,10 +116,10 @@ func reloadIPTable(tp tpStatus) {
 
 		if entry.Type == "Gway" {
 			command := "ADDMaster " + entry.CipID + " " + entry.IPAddressSitename
-			resp, err = sendCommand(tp, command, true)
+			resp, err = helpers.SendCommand(tp, command, true)
 		} else {
 			command := "ADDSlave " + entry.CipID + " " + entry.IPAddressSitename
-			resp, err = sendCommand(tp, command, true)
+			resp, err = helpers.SendCommand(tp, command, true)
 		}
 
 		if err != nil {
@@ -171,7 +139,7 @@ func loadProject(tp tpStatus) {
 
 	fmt.Printf("%s Sending project load.\n", tp.IPAddress)
 	command := "projectload"
-	resp, err := sendCommand(tp, command, true)
+	resp, err := helpers.SendCommand(tp, command, true)
 
 	if err != nil {
 		reportError(tp, err)
@@ -209,7 +177,7 @@ func moveProject(tp tpStatus) {
 	filename := filepath.Base(tp.Information.ProjectLocation)
 	command := "MOVEFILE /ROMDISK/user/system/" + filename + " /ROMDISK/user/Display"
 
-	resp, err := sendCommand(tp, command, true)
+	resp, err := helpers.SendCommand(tp, command, true)
 
 	if err != nil {
 		reportError(tp, err)
@@ -219,7 +187,7 @@ func moveProject(tp tpStatus) {
 
 	// Send Reboot command
 	command = "reboot"
-	resp, err = sendCommand(tp, command, true)
+	resp, err = helpers.SendCommand(tp, command, true)
 
 	if err != nil {
 		reportError(tp, err)
@@ -241,7 +209,7 @@ func completeStep(tp tpStatus, step int, curStatus string) {
 
 func copyProject(tp tpStatus) {
 	fmt.Printf("%s Clearing old project...\n", tp.IPAddress)
-	sendCommand(tp, "delete /ROMDISK/user/Display/*", true) // clear out space for the copy to succeed
+	helpers.SendCommand(tp, "delete /ROMDISK/user/Display/*", true) // clear out space for the copy to succeed
 
 	fmt.Printf("%s Submitting to copy Project.\n", tp.IPAddress)
 	sendFTPRequest(tp, "/FIRMWARE", tp.Information.ProjectLocation)
@@ -290,7 +258,7 @@ func retrieveIPTable(tp tpStatus) {
 func updateFirmware(tp tpStatus) {
 	fmt.Printf("%s Firmware Update \n", tp.IPAddress)
 
-	resp, err := sendCommand(tp, "puf", true)
+	resp, err := helpers.SendCommand(tp, "puf", true)
 	if err != nil {
 		reportError(tp, err)
 		return
@@ -315,7 +283,7 @@ func removeOldFirmware(tp tpStatus) {
 }
 
 func getPrompt(tp tpStatus) (string, error) {
-	var req = telnetRequest{IPAddress: tp.IPAddress, Command: "hostname"}
+	var req = TelnetRequest{IPAddress: tp.IPAddress, Command: "hostname"}
 	bits, _ := json.Marshal(req)
 
 	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS")+"/getPrompt", "application/json", bytes.NewBuffer(bits))
@@ -329,7 +297,7 @@ func getPrompt(tp tpStatus) (string, error) {
 		return "", err
 	}
 
-	respValue := telnetRequest{}
+	respValue := TelnetRequest{}
 
 	err = json.Unmarshal(b, &respValue)
 
@@ -436,7 +404,7 @@ func getProjectVersion(tp tpStatus, retry int) (modelInformation, error) {
 	fmt.Printf("%s Getting project info...\n", tp.IPAddress)
 	info := modelInformation{}
 
-	rawData, err := sendCommand(tp, "xget ~.LocalInfo.vtpage", true)
+	rawData, err := helpers.SendCommand(tp, "xget ~.LocalInfo.vtpage", true)
 
 	if err != nil {
 		return info, err
@@ -472,7 +440,7 @@ func getProjectVersion(tp tpStatus, retry int) (modelInformation, error) {
 func getFirmwareVersion(tp tpStatus) (string, error) {
 	fmt.Printf("%s Getting Firmware Version\n", tp.IPAddress)
 
-	data, err := sendCommand(tp, "ver", true)
+	data, err := helpers.SendCommand(tp, "ver", true)
 
 	if err != nil {
 		return "", err

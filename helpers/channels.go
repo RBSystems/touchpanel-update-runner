@@ -3,30 +3,28 @@ package helpers
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"time"
 
 	"github.com/labstack/echo"
 )
 
-func BuildStartTPUpdate(submissionChannel chan<- tpStatus) func(c echo.Context) error {
+func startTP(jobInfo jobInformation) tpStatus {
+	tp := BuildTouchpanel(jobInfo)
+	fmt.Printf("%s Starting.\n", tp.IPAddress)
+	go StartRun(tp)
+
+	return tp
+}
+
+func BuildControllerStartTouchpanelUpdate(submissionChannel chan<- tpStatus) func(c echo.Context) error {
 	return func(c echo.Context) error {
-		ipaddr := c.URLParams["ipAddress"]
+		ipaddr := c.Param("ipAddress")
 		batch := time.Now().Format(time.RFC3339)
-		bits, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "%s", err.Error())
-		}
-		var jobInfo = jobInformation{}
 
-		err = json.Unmarshal(bits, &jobInfo)
+		jobInfo := jobInformation{}
+		c.Bind(jobInfo)
 
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprintf(w, "%s", err.Error())
-		}
 		jobInfo.IPAddress = ipaddr
 		jobInfo.Batch = batch
 

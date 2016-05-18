@@ -1,4 +1,4 @@
-package main
+package helpers
 
 import (
 	"bytes"
@@ -11,23 +11,23 @@ import (
 	"strings"
 	"time"
 
-	"github.com/byuoitav/touchpanel-update-runner/helpers"
+	"github.com/byuoitav/telnet-microservice/helpers"
 )
 
-// Starts the TP Update process
-func startRun(curTP tpStatus) {
+// Starts the touchpanel update process
+func StartRun(curTP tpStatus) {
 	curTP.Attempts++
 
-	curTP.Steps = getTPSteps()
+	curTP.Steps = GetTouchpanelSteps()
 
 	curTP.Attempts = 0 // We haven't tried yet
 
 	// Get the hostname
 
-	response, err := sendCommand(curTP, "hostname", true)
+	response, err := helpers.SendCommand(curTP, "hostname", true)
 
 	if err != nil {
-		fmt.Printf("Could not retrieve hostname.")
+		fmt.Printf("Could not retrieve hostname")
 	}
 	if strings.Contains(response, "Host Name:") {
 		response = strings.Split(response, "Host Name:")[1]
@@ -49,10 +49,7 @@ func startWait(curTP tpStatus) error {
 
 	bits, _ := json.Marshal(req)
 
-	// fmt.Printf("Payload being send: \n %s \n", string(bits))
-
-	// we have to wait for the thing to actually restart - otherwise we'll return
-	// before it gets in a non-communicative state
+	// we have to wait for the thing to actually restart - otherwise we'll return before it gets in a non-communicative state
 	time.Sleep(10 * time.Second) // TODO: Shift this into our wait microservice
 
 	resp, err := http.Post(os.Getenv("WAIT_FOR_REBOOT_MICROSERVICE_ADDRESS"), "application/json", bytes.NewBuffer(bits))
@@ -79,7 +76,7 @@ func reportNotNeeded(tp tpStatus, status string) {
 	tp.EndTime = time.Now()
 	updateChannel <- tp
 
-	helpers.SendToElastic(tp, 0)
+	SendToElastic(tp, 0)
 }
 
 func reportSuccess(tp tpStatus) {
@@ -89,7 +86,7 @@ func reportSuccess(tp tpStatus) {
 	tp.EndTime = time.Now()
 	updateChannel <- tp
 
-	helpers.SendToElastic(tp, 0)
+	SendToElastic(tp, 0)
 }
 
 func reportError(tp tpStatus, err error) {
@@ -107,9 +104,9 @@ func reportError(tp tpStatus, err error) {
 			ipTable = true
 		}
 
-		tp.Steps = getTPSteps() // reset the steps
+		tp.Steps = GetTouchpanelSteps() // Reset the steps
 
-		if ipTable { // if the iptable was already populated
+		if ipTable { // If the iptable was already populated
 			tp.Steps[0].Completed = true
 		}
 
@@ -124,13 +121,13 @@ func reportError(tp tpStatus, err error) {
 	tp.ErrorInfo = append(tp.ErrorInfo, err.Error())
 	updateChannel <- tp
 
-	helpers.SendToElastic(tp, 0)
+	SendToElastic(tp, 0)
 }
 
 func getIPTable(IPAddress string) (IPTable, error) {
 	var toReturn = IPTable{}
 	// TODO: Make the prompt generic
-	var req = telnetRequest{IPAddress: IPAddress, Command: "iptable"}
+	var req = TelnetRequest{IPAddress: IPAddress, Command: "iptable"}
 
 	bits, _ := json.Marshal(req)
 

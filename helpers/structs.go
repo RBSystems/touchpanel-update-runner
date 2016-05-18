@@ -1,4 +1,4 @@
-package main
+package helpers
 
 import "time"
 
@@ -94,7 +94,7 @@ func (i *IPTable) Equals(compare IPTable) bool {
 	return true
 }
 
-// Equals compare two IPEntries to see if they're equivalent
+// Equals compares two IPEntries to see if they're equivalent
 func (e *IPEntry) Equals(compare IPEntry) bool {
 	if e.CipID != compare.CipID ||
 		e.DevID != compare.DevID ||

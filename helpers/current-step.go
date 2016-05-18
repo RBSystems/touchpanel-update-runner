@@ -1,4 +1,4 @@
-package main
+package helpers
 
 import (
 	"errors"
@@ -28,7 +28,7 @@ type tpStatus struct {
 
 // GetCurStatus gets the current step (the first item in the list of steps that isn't completed)
 // returns it's name/location in array. Returns an error if completed
-func (t *tpStatus) GetCurStep() (int, error) {
+func (t *tpStatus) GetCurrentStep() (int, error) {
 	// fmt.Printf("Steps: %v\n", t.Steps)
 	for k := range t.Steps {
 		if t.Steps[k].Completed == false {
