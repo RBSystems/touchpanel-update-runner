@@ -11,6 +11,10 @@ import (
 func GetAllTouchpanelStatus(context echo.Context) error {
 	var info []helpers.TouchpanelStatus
 
+	if len(helpers.TouchpanelStatusMap) == 0 {
+		return context.JSON(http.StatusOK, "No touchpanels currently updating")
+	}
+
 	for _, v := range helpers.TouchpanelStatusMap {
 		info = append(info, v)
 	}
@@ -21,6 +25,10 @@ func GetAllTouchpanelStatus(context echo.Context) error {
 func GetAllTouchpanelStatusConcise(context echo.Context) error {
 	var info []string
 	info = append(info, "IP\tStatus\tError\n")
+
+	if len(helpers.TouchpanelStatusMap) == 0 {
+		return context.JSON(http.StatusOK, "No touchpanels currently updating")
+	}
 
 	for _, v := range helpers.TouchpanelStatusMap {
 		if len(v.ErrorInfo) > 0 {
@@ -35,8 +43,8 @@ func GetAllTouchpanelStatusConcise(context echo.Context) error {
 	return context.JSON(http.StatusOK, info)
 }
 
-func GetTPStatus(context echo.Context) error {
-	ip := context.Param("ipAddress")
+func GetTouchpanelStatus(context echo.Context) error {
+	ip := context.Param("address")
 
 	var toReturn []helpers.TouchpanelStatus
 
@@ -77,25 +85,25 @@ func BuildControllerStartMultipleTPUpdate(submissionChannel chan<- helpers.Touch
 
 		batch := time.Now().Format(time.RFC3339)
 
-		tpList := []helpers.TouchpanelStatus{}
-		for j := range info.Info {
-			if info.Info[j].Address == "" {
-				tpList = append(tpList, helpers.TouchpanelStatus{
+		touchpanelList := []helpers.TouchpanelStatus{}
+		for i := range info.Info {
+			if info.Info[i].Address == "" {
+				touchpanelList = append(touchpanelList, helpers.TouchpanelStatus{
 					CurrentStatus: "Could not start, no IP Address provided.",
 					ErrorInfo:     []string{"No IP Address provided."}})
 				continue
 			}
 
-			info.Info[j].HDConfiguration = info.HDConfiguration
-			info.Info[j].TecLiteConfiguraiton = info.TecLiteConfiguraiton
-			info.Info[j].FliptopConfiguration = info.FliptopConfiguration
-			info.Info[j].Batch = batch
+			info.Info[i].HDConfiguration = info.HDConfiguration
+			info.Info[i].TecLiteConfiguraiton = info.TecLiteConfiguraiton
+			info.Info[i].FliptopConfiguration = info.FliptopConfiguration
+			info.Info[i].Batch = batch
 
-			touchpanel := helpers.StartTP(info.Info[j])
+			touchpanel := helpers.StartTP(info.Info[i])
 
-			tpList = append(tpList, touchpanel)
+			touchpanelList = append(touchpanelList, touchpanel)
 		}
 
-		return context.JSON(http.StatusOK, tpList)
+		return context.JSON(http.StatusOK, touchpanelList)
 	}
 }

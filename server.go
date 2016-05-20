@@ -24,7 +24,7 @@ func main() {
 	helpers.TouchpanelStatusMap = make(map[string]helpers.TouchpanelStatus)
 	helpers.ValidationStatus = make(map[string]helpers.TouchpanelStatus)
 
-	// Watch for new things in the channels
+	// Watch for new things in channels
 	go helpers.ValidateHelper()
 	go helpers.ChannelUpdater()
 
@@ -39,9 +39,9 @@ func main() {
 	e.Get("/health", health.Check)
 
 	// Touchpanels
-	e.Get("/touchpanel/status", controllers.GetAllTouchpanelStatus)
-	e.Get("/touchpanel/status/concise", controllers.GetAllTouchpanelStatusConcise)
-	e.Get("/touchpanel/:address/status", controllers.GetTPStatus)
+	e.Get("/touchpanel", controllers.GetAllTouchpanelStatus)
+	e.Get("/touchpanel/compact", controllers.GetAllTouchpanelStatusConcise)
+	e.Get("/touchpanel/:address", controllers.GetTouchpanelStatus)
 
 	e.Post("/touchpanel", multipleTouchpanelUpdatesController)
 	e.Post("/touchpanel/:address", touchpanelUpdateController)
@@ -54,9 +54,9 @@ func main() {
 	e.Post("/callback/afterFTP", controllers.AfterFTPHandle)
 
 	// Validation
-	e.Get("/validate/touchpanels/status", controllers.GetValidationStatus)
+	e.Get("/validate/touchpanel", controllers.GetValidationStatus)
 
-	e.Post("/validate/touchpanels", controllers.Validate)
+	e.Post("/validate/touchpanel", controllers.Validate)
 
 	fmt.Printf("The Touchpanel Update Runner is listening on %s\n", port)
 	e.Run(fasthttp.New(port))

@@ -47,8 +47,8 @@ func GetValidationStatus(context echo.Context) error {
 	fmt.Printf("Length of Map: %v\n", len(helpers.ValidationStatus))
 	fmt.Printf("Length of hostnames: %v\n", len(hostnames))
 
-	for h := range hostnames {
-		cur := values[hostnames[h]]
+	for i := range hostnames {
+		cur := values[hostnames[i]]
 		fmt.Println(cur.Hostname + "   " + cur.Address + "   " + cur.CurrentStatus)
 	}
 
