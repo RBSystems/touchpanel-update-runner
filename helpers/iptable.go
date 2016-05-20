@@ -31,7 +31,7 @@ func getIPTable(address string) (IPTable, error) {
 		return IPTable{}, err
 	}
 
-	fmt.Printf("%s", responseJSON)
+	fmt.Printf("%s\n", responseJSON)
 
 	err = json.Unmarshal(responseJSON, &iptable)
 	if err != nil {

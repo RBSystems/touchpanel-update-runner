@@ -11,16 +11,16 @@ import (
 
 func SendFTPRequest(touchpanel TouchpanelStatus, path string, file string) {
 	reqInfo := FtpRequest{
-		Address: touchpanel.Address,
-		CallbackAddress:   os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterFTP",
-		Path:              path,
-		File:              file,
-		Identifier:        touchpanel.UUID,
+		Address:         touchpanel.Address,
+		CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callback/ftp",
+		Path:            path,
+		File:            file,
+		Identifier:      touchpanel.UUID,
 	}
 
 	b, _ := json.Marshal(&reqInfo)
 
-	resp, err := http.Post(os.Getenv("FTP_MICROSERVICE_ADDRESS"), "application/json", bytes.NewBuffer(b))
+	resp, err := http.Post(os.Getenv("FTP_MICROSERVICE_ADDRESS")+"/send", "application/json", bytes.NewBuffer(b))
 	if err != nil {
 		ReportError(touchpanel, err)
 	}

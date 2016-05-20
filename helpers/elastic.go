@@ -12,7 +12,6 @@ import (
 func SendToElastic(touchpanel TouchpanelStatus, retry int) {
 	b, _ := json.Marshal(&touchpanel)
 	resp, err := http.Post(os.Getenv("ELASTICSEARCH_ADDRESS")+"/tpupdates/"+touchpanel.Batch+"/"+touchpanel.Hostname, "application/json", bytes.NewBuffer(b))
-
 	if err != nil {
 		if retry < 2 {
 			fmt.Printf("%s error posting to ELK %s Trying again\n", touchpanel.Address, err.Error())

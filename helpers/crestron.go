@@ -170,7 +170,7 @@ func InitializeTouchpanel(touchpanel TouchpanelStatus) error {
 	req := TelnetRequest{Address: touchpanel.Address, Command: "initialize", Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
-	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS")+"Confirm", "application/json", bytes.NewBuffer(bits))
+	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS")+"/confirmed", "application/json", bytes.NewBuffer(bits))
 	defer resp.Body.Close()
 	if err != nil {
 		return err
@@ -193,7 +193,7 @@ func ValidateNeedForUpdate(touchpanel TouchpanelStatus, ignoreTP bool) (bool, st
 		return false, "Couldn't get a prompt"
 	}
 
-	fmt.Printf("%s Prompt Returned was: %s \n", touchpanel.Address, prompt)
+	fmt.Printf("%s Prompt returned was: %s \n", touchpanel.Address, prompt)
 
 	if touchpanel.Type != "TECHD" || !strings.Contains(prompt, "TSW-750>") {
 		return false, "Not a touchpanel. Prompt received: " + prompt
@@ -213,7 +213,7 @@ func ValidateNeedForUpdate(touchpanel TouchpanelStatus, ignoreTP bool) (bool, st
 
 	for k, v := range m {
 		if !v {
-			fmt.Printf("%s needs %s\n", touchpanel.Address, k)
+			fmt.Printf("%s Needs %s\n", touchpanel.Address, k)
 		}
 	}
 
@@ -285,7 +285,7 @@ func RemoveOldPUF(ipAddress string) error {
 	req := TelnetRequest{Address: ipAddress, Command: "cd /ROMDISK/user/sytem\nerase *.puf", Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
-	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS"), "application/json", bytes.NewBuffer(bits))
+	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS")+"/command", "application/json", bytes.NewBuffer(bits))
 	defer resp.Body.Close()
 	if err != nil {
 		return err

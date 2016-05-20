@@ -17,11 +17,15 @@ type TelnetRequest struct {
 	Prompt  string
 }
 
+type TelnetPrompt struct {
+	Prompt string `json:"prompt"`
+}
+
 func SendTelnetCommand(touchpanel TouchpanelStatus, command string, tryAgain bool) (string, error) { // Sends telnet commands
 	var req = TelnetRequest{Address: touchpanel.Address, Command: command, Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
-	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS"), "application/json", bytes.NewBuffer(bits))
+	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS")+"/command", "application/json", bytes.NewBuffer(bits))
 	if err != nil {
 		return "", err
 	}
@@ -52,23 +56,22 @@ func SendTelnetCommand(touchpanel TouchpanelStatus, command string, tryAgain boo
 }
 
 func GetPrompt(touchpanel TouchpanelStatus) (string, error) {
-	var req = TelnetRequest{Address: touchpanel.Address, Command: "hostname"}
-	bits, _ := json.Marshal(req)
+	var prompt string
 
-	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS")+"/getPrompt", "application/json", bytes.NewBuffer(bits))
+	response, err := http.Get(os.Getenv("TELNET_MICROSERVICE_ADDRESS") + "/prompt/" + touchpanel.Address)
 	if err != nil {
 		return "", err
 	}
 
-	b, err := ioutil.ReadAll(resp.Body)
-	defer resp.Body.Close()
+	promptJSON, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return "", err
 	}
 
-	respValue := TelnetRequest{}
+	err = json.Unmarshal(promptJSON, &prompt)
+	if err != nil {
+		return "", err
+	}
 
-	err = json.Unmarshal(b, &respValue)
-
-	return respValue.Prompt, nil
+	return prompt, nil
 }

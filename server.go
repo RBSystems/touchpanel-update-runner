@@ -50,8 +50,8 @@ func main() {
 	e.Put("/touchpanel/:address", touchpanelUpdateController)
 
 	// Callback
-	e.Post("/callback/afterWait", controllers.PostWait)
-	e.Post("/callback/afterFTP", controllers.AfterFTPHandle)
+	e.Post("/callback/wait", controllers.PostWait)
+	e.Post("/callback/ftp", controllers.AfterFTPHandle)
 
 	// Validation
 	e.Get("/validate/touchpanel", controllers.GetValidationStatus)
