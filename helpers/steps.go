@@ -26,11 +26,11 @@ func getTouchpanelStepNames() []string {
 }
 
 // CompleteStep sends a complete step to the update channel
-func CompleteStep(tp TouchpanelStatus, step int, curStatus string) {
-	tp.Steps[step].Completed = true
-	tp.CurrentStatus = curStatus
+func CompleteStep(touchpanel TouchpanelStatus, step int, curStatus string) {
+	touchpanel.Steps[step].Completed = true
+	touchpanel.CurrentStatus = curStatus
 
-	UpdateChannel <- tp
+	UpdateChannel <- touchpanel
 }
 
 func GetTouchpanelSteps() []step {

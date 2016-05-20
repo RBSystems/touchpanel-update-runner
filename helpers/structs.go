@@ -39,10 +39,6 @@ type MultiJobInformation struct {
 	Info                 []JobInformation
 }
 
-type submissionRequest struct {
-	CallbackAddress string
-}
-
 type FtpRequest struct {
 	Address         string    `json:",omitempty"`
 	CallbackAddress string    `json:",omitempty"`
@@ -59,10 +55,10 @@ type FtpRequest struct {
 }
 
 type WaitRequest struct {
-	Address         string    // hostname to be pinged
-	Port            int       // port to be used when testing connection
+	Address         string    // Address to be pinged
+	Port            int       // Port to be used when testing connection
 	Timeout         int       // Time in seconds to wait. Optional, will default to 300 seconds if not present or is 0
-	CallbackAddress string    // complete address to send the notification that the host is responding
+	CallbackAddress string    // Complete address to send the notification that the host is responding
 	SubmissionTime  time.Time // Will be filled by the server as the time the process started pinging
 	CompletionTime  time.Time // Will be filled by the service as the time that a) Sucessfully responded or b) timed out
 	Status          string    // Timeout or Success
@@ -80,7 +76,7 @@ type modelInformation struct {
 // Defines one step, it's completion status, as well as any information gathered from the step
 type step struct {
 	StepName  string // Name of the step
-	Completed bool   // if the step has been completed
+	Completed bool   // If the step has been completed
 	Info      string // Any information gathered from the step. Usually the JSON body retrieved
 	Attempts  int
 }
@@ -100,7 +96,7 @@ type IPEntry struct {
 	AddressSitename string
 }
 
-// Equals checks if two iptabels are equivalent
+// Equals checks if two IPTables are equivalent
 func (i *IPTable) Equals(compare IPTable) bool {
 	if len(i.Entries) != len(compare.Entries) {
 		return false

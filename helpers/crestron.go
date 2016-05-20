@@ -13,22 +13,22 @@ import (
 	"time"
 )
 
-func loadProject(tp TouchpanelStatus) {
-	fmt.Printf("%s Loading Project \n", tp.Address)
+func loadProject(touchpanel TouchpanelStatus) {
+	fmt.Printf("%s Loading Project \n", touchpanel.Address)
 
 	time.Sleep(60 * time.Second) // for some reason we keep getting issues with this. It won't load the project for a while
 
-	fmt.Printf("%s Sending project load\n", tp.Address)
+	fmt.Printf("%s Sending project load\n", touchpanel.Address)
 	command := "projectload"
-	resp, err := SendTelnetCommand(tp, command, true)
-
+	resp, err := SendTelnetCommand(touchpanel, command, true)
 	if err != nil {
-		ReportError(tp, err)
+		ReportError(touchpanel, err)
 		return
 	}
-	fmt.Printf("%s Return Value: %v\n", tp.Address, resp)
 
-	StartWait(tp)
+	fmt.Printf("%s Return Value: %v\n", touchpanel.Address, resp)
+
+	StartWait(touchpanel)
 }
 
 // Send the response of a telnet command to validate success, will return true
@@ -52,51 +52,50 @@ func validateCommand(output string, command string) bool {
 	return true
 }
 
-func moveProject(tp TouchpanelStatus) {
-	fmt.Printf("%s Moving Project\n", tp.Address)
+func moveProject(touchpanel TouchpanelStatus) {
+	fmt.Printf("%s Moving Project\n", touchpanel.Address)
 
-	filename := filepath.Base(tp.Information.ProjectLocation)
+	filename := filepath.Base(touchpanel.Information.ProjectLocation)
 	command := "MOVEFILE /ROMDISK/user/system/" + filename + " /ROMDISK/user/Display"
 
-	resp, err := SendTelnetCommand(tp, command, true)
-
+	resp, err := SendTelnetCommand(touchpanel, command, true)
 	if err != nil {
-		ReportError(tp, err)
+		ReportError(touchpanel, err)
 		return
 	}
-	fmt.Printf("%s Move Return Value: %v\n", tp.Address, resp)
+
+	fmt.Printf("%s Move Return Value: %v\n", touchpanel.Address, resp)
 
 	// Send Reboot command
 	command = "reboot"
-	resp, err = SendTelnetCommand(tp, command, true)
-
+	resp, err = SendTelnetCommand(touchpanel, command, true)
 	if err != nil {
-		ReportError(tp, err)
+		ReportError(touchpanel, err)
 		return
 	}
 
-	fmt.Printf("%s Reboot Return Value: %v\n", tp.Address, resp)
+	fmt.Printf("%s Reboot Return Value: %v\n", touchpanel.Address, resp)
 
-	StartWait(tp)
+	StartWait(touchpanel)
 }
 
 // Involved in the validation endpoints
-func validateTP(tp TouchpanelStatus) {
-	m, err := doValidation(tp, false)
+func validateTP(touchpanel TouchpanelStatus) {
+	m, err := doValidation(touchpanel, false)
 	if err == nil {
-		reportSuccess(tp)
+		reportSuccess(touchpanel)
 		return
 	}
 
 	// if the error was just IPTable try it again
 	if m["iptable"] == false && m["firmware"] == true && m["project"] == true {
-		fmt.Printf("%s iptable not loaded\n", tp.Address)
+		fmt.Printf("%s iptable not loaded\n", touchpanel.Address)
 
-		if tp.Steps[10].Attempts < 2 {
-			tp.Steps[10].Attempts++
-			tp.Steps[9].Completed = false
+		if touchpanel.Steps[10].Attempts < 2 {
+			touchpanel.Steps[10].Attempts++
+			touchpanel.Steps[9].Completed = false
 
-			StartWait(tp)
+			StartWait(touchpanel)
 			return
 		}
 	}
@@ -108,15 +107,14 @@ func validateTP(tp TouchpanelStatus) {
 		}
 	}
 
-	ReportError(tp, errors.New(errStr))
+	ReportError(touchpanel, errors.New(errStr))
 }
 
-func getProjectVersion(tp TouchpanelStatus, retry int) (modelInformation, error) {
-	fmt.Printf("%s Getting project info...\n", tp.Address)
+func getProjectVersion(touchpanel TouchpanelStatus, retry int) (modelInformation, error) {
+	fmt.Printf("%s Getting project info...\n", touchpanel.Address)
 	info := modelInformation{}
 
-	rawData, err := SendTelnetCommand(tp, "xget ~.LocalInfo.vtpage", true)
-
+	rawData, err := SendTelnetCommand(touchpanel, "xget ~.LocalInfo.vtpage", true)
 	if err != nil {
 		return info, err
 	}
@@ -124,35 +122,33 @@ func getProjectVersion(tp TouchpanelStatus, retry int) (modelInformation, error)
 	// We've tried to retrieve the vtpage at the same time as someone else. Wait for
 	// them to finish and try again
 	if strings.Contains(rawData, ":Could not") && retry < 2 {
-		fmt.Printf("%s Could not get project information, trying again in 45 seconds...\n", tp.Address)
+		fmt.Printf("%s Could not get project information, trying again in 45 seconds...\n", touchpanel.Address)
 		time.Sleep(45 * time.Second)
-		return getProjectVersion(tp, retry+1)
+		return getProjectVersion(touchpanel, retry+1)
 	}
 
 	re := regexp.MustCompile("VTZ=(.*?)\\nDate=(.*?)\\n") // we just want project title and date
 
 	matches := re.FindStringSubmatch(string(rawData))
-
 	if matches == nil {
-		fmt.Printf("%s %s\n", tp.Address, rawData)
+		fmt.Printf("%s %s\n", touchpanel.Address, rawData)
 		return info, errors.New("Bad data returned")
 	}
 
-	fmt.Printf("%s Project Info: %+v\n", tp.Address, matches)
+	fmt.Printf("%s Project Info: %+v\n", touchpanel.Address, matches)
 
 	info.ProjectLocation = strings.TrimSpace(matches[1])
 	info.ProjectDate = strings.TrimSpace(matches[2])
 
-	fmt.Printf("%s ProjectDate:%s  ProjectName: %s\n", tp.Address, info.ProjectDate, info.ProjectLocation)
+	fmt.Printf("%s ProjectDate:%s  ProjectName: %s\n", touchpanel.Address, info.ProjectDate, info.ProjectLocation)
 
 	return info, nil
 }
 
-func getFirmwareVersion(tp TouchpanelStatus) (string, error) {
-	fmt.Printf("%s Getting Firmware Version\n", tp.Address)
+func getFirmwareVersion(touchpanel TouchpanelStatus) (string, error) {
+	fmt.Printf("%s Getting Firmware Version\n", touchpanel.Address)
 
-	data, err := SendTelnetCommand(tp, "ver", true)
-
+	data, err := SendTelnetCommand(touchpanel, "ver", true)
 	if err != nil {
 		return "", err
 	}
@@ -160,19 +156,18 @@ func getFirmwareVersion(tp TouchpanelStatus) (string, error) {
 	re := regexp.MustCompile("\\[v(.*?)\\s")
 
 	match := re.FindStringSubmatch(string(data))
-
 	if match == nil {
 		return "", errors.New("Bad data returned")
 	}
 
-	fmt.Printf("%s Firmware Version: %s\n", tp.Address, match[1])
+	fmt.Printf("%s Firmware Version: %s\n", touchpanel.Address, match[1])
 
 	return match[1], nil
 }
 
-func InitializeTouchpanel(tp TouchpanelStatus) error {
-	fmt.Printf("%s Intializing\n", tp.Address)
-	req := TelnetRequest{Address: tp.Address, Command: "initialize", Prompt: "TSW-750>"}
+func InitializeTouchpanel(touchpanel TouchpanelStatus) error {
+	fmt.Printf("%s Intializing\n", touchpanel.Address)
+	req := TelnetRequest{Address: touchpanel.Address, Command: "initialize", Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
 	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS")+"Confirm", "application/json", bytes.NewBuffer(bits))
@@ -181,8 +176,8 @@ func InitializeTouchpanel(tp TouchpanelStatus) error {
 		return err
 	}
 
-	// Wait for it to come back from initialize
-	err = StartWait(tp)
+	// Wait for the touchpanel to come back from initialize
+	err = StartWait(touchpanel)
 	if err != nil {
 		return err
 	}
@@ -192,37 +187,33 @@ func InitializeTouchpanel(tp TouchpanelStatus) error {
 
 // ValidateNeedForUpdate checks to make sure the device in question is a TecHD touch panel and needs and update
 // Bypassed in final validation after all other steps have suceeded (firmware installed, IP tables, etc.)
-func ValidateNeedForUpdate(tp TouchpanelStatus, ignoreTP bool) (bool, string) {
-	prompt, err := GetPrompt(tp)
-
-	fmt.Printf("%s Prompt Returned was: %s \n", tp.Address, prompt)
-
+func ValidateNeedForUpdate(touchpanel TouchpanelStatus, ignoreTP bool) (bool, string) {
+	prompt, err := GetPrompt(touchpanel)
 	if err != nil {
 		return false, "Couldn't get a prompt"
 	}
 
-	if tp.Type != "TECHD" || !strings.Contains(prompt, "TSW-750>") {
+	fmt.Printf("%s Prompt Returned was: %s \n", touchpanel.Address, prompt)
+
+	if touchpanel.Type != "TECHD" || !strings.Contains(prompt, "TSW-750>") {
 		return false, "Not a touchpanel. Prompt received: " + prompt
 	}
 
-	if tp.Force {
-		fmt.Printf("%s Forced update\n", tp.Address)
+	if touchpanel.Force {
+		fmt.Printf("%s Forced update\n", touchpanel.Address)
 		return true, ""
 	}
 
-	m, err := doValidation(tp, ignoreTP)
-
+	m, err := doValidation(touchpanel, ignoreTP)
 	if err != nil {
-		fmt.Printf("%s Validation error: %s\n", tp.Address, err.Error())
-	}
-
-	if err == nil {
+		fmt.Printf("%s Validation error: %s\n", touchpanel.Address, err.Error())
+	} else {
 		return false, "Already has firmware and project"
 	}
 
 	for k, v := range m {
 		if !v {
-			fmt.Printf("%s needs %s\n", tp.Address, k)
+			fmt.Printf("%s needs %s\n", touchpanel.Address, k)
 		}
 	}
 
@@ -230,43 +221,46 @@ func ValidateNeedForUpdate(tp TouchpanelStatus, ignoreTP bool) (bool, string) {
 }
 
 // Called from validateTP
-func doValidation(tp TouchpanelStatus, ignoreTP bool) (map[string]bool, error) {
+func doValidation(touchpanel TouchpanelStatus, ignoreTP bool) (map[string]bool, error) {
 	toReturn := make(map[string]bool)
 	needed := false
-	// we need to validate IPTable, Firmware, and Project
-	projVer, err := getProjectVersion(tp, 0)
+	// We need to validate IPTable, Firmware, and Project
+	projVer, err := getProjectVersion(touchpanel, 0)
 
-	if err != nil || !strings.EqualFold(projVer.ProjectDate, tp.Information.ProjectDate) {
-		fmt.Printf("%s Return Ver: %s\n", tp.Address, projVer.ProjectDate)
-		fmt.Printf("%s Needed Ver: %s\n", tp.Address, tp.ProjectDate)
+	if err != nil || !strings.EqualFold(projVer.ProjectDate, touchpanel.Information.ProjectDate) {
+		fmt.Printf("%s Return Ver: %s\n", touchpanel.Address, projVer.ProjectDate)
+		fmt.Printf("%s Needed Ver: %s\n", touchpanel.Address, touchpanel.ProjectDate)
 		if err != nil {
-			fmt.Printf("%s ERROR: %s\n", tp.Address, err.Error())
+			fmt.Printf("%s ERROR: %s\n", touchpanel.Address, err.Error())
 		}
+
 		toReturn["project"] = false
 		needed = true
 	} else {
 		toReturn["project"] = true
 	}
 
-	firmware, err := getFirmwareVersion(tp)
-	if err != nil || firmware != tp.Information.FirmwareVersion {
+	firmware, err := getFirmwareVersion(touchpanel)
+	if err != nil || firmware != touchpanel.Information.FirmwareVersion {
 		toReturn["firmware"] = false
 		needed = true
 	} else {
 		toReturn["firmware"] = true
 	}
+
 	if !ignoreTP {
-		ipTable, _ := getIPTable(tp.Address)
+		ipTable, _ := getIPTable(touchpanel.Address)
 
-		fmt.Printf("%s IPTABLE: %s\n", tp.Address, ipTable)
+		fmt.Printf("%s IPTABLE: %s\n", touchpanel.Address, ipTable)
 
-		if !ipTable.Equals(tp.IPTable) {
+		if !ipTable.Equals(touchpanel.IPTable) {
 			toReturn["iptable"] = false
 			needed = true
 		} else {
 			toReturn["iptable"] = true
 		}
 	}
+
 	if needed {
 		return toReturn, errors.New("Needed update")
 	}
@@ -274,17 +268,17 @@ func doValidation(tp TouchpanelStatus, ignoreTP bool) (map[string]bool, error) {
 	return toReturn, nil
 }
 
-func CopyProject(tp TouchpanelStatus) {
-	fmt.Printf("%s Clearing old project...\n", tp.Address)
-	SendTelnetCommand(tp, "delete /ROMDISK/user/Display/*", true) // clear out space for the copy to succeed
+func CopyProject(touchpanel TouchpanelStatus) {
+	fmt.Printf("%s Clearing old project...\n", touchpanel.Address)
+	SendTelnetCommand(touchpanel, "delete /ROMDISK/user/Display/*", true) // clear out space for the copy to succeed
 
-	fmt.Printf("%s Submitting to copy Project\n", tp.Address)
-	SendFTPRequest(tp, "/FIRMWARE", tp.Information.ProjectLocation)
+	fmt.Printf("%s Submitting to copy Project\n", touchpanel.Address)
+	SendFTPRequest(touchpanel, "/FIRMWARE", touchpanel.Information.ProjectLocation)
 }
 
-func SendFirmware(tp TouchpanelStatus) {
-	fmt.Printf("%s Submitting to move Firmware\n", tp.Address)
-	SendFTPRequest(tp, "/FIRMWARE", tp.Information.FirmwareLocation)
+func SendFirmware(touchpanel TouchpanelStatus) {
+	fmt.Printf("%s Submitting to move Firmware\n", touchpanel.Address)
+	SendFTPRequest(touchpanel, "/FIRMWARE", touchpanel.Information.FirmwareLocation)
 }
 
 func RemoveOldPUF(ipAddress string) error {
@@ -302,79 +296,72 @@ func RemoveOldPUF(ipAddress string) error {
 	return nil
 }
 
-func ReloadIPTable(tp TouchpanelStatus) {
+func ReloadIPTable(touchpanel TouchpanelStatus) {
 	// Verify that we actually need to reload
-	table, err := getIPTable(tp.Address)
+	table, err := getIPTable(touchpanel.Address)
+	if err == nil && touchpanel.IPTable.Equals(table) {
+		step, _ := touchpanel.GetCurrentStep()
+		touchpanel.Steps[step].Info = "No need to update--IPTable already matches"
 
-	if err == nil && tp.IPTable.Equals(table) {
-		step, _ := tp.GetCurrentStep()
-		tp.Steps[step].Info = "No need to update. IPTable already matches"
-
-		EvaluateNextStep(tp)
+		EvaluateNextStep(touchpanel)
 	}
 
-	for i := range tp.IPTable.Entries {
-		entry := tp.IPTable.Entries[i]
-
-		var resp string
-		var err error
+	for i := range touchpanel.IPTable.Entries {
 		var status []string
+		entry := touchpanel.IPTable.Entries[i]
+
+		command := ""
 
 		if entry.Type == "Gway" {
-			command := "ADDMaster " + entry.CipID + " " + entry.AddressSitename
-			resp, err = SendTelnetCommand(tp, command, true)
+			command = "ADDMaster " + entry.CipID + " " + entry.AddressSitename
 		} else {
-			command := "ADDSlave " + entry.CipID + " " + entry.AddressSitename
-			resp, err = SendTelnetCommand(tp, command, true)
+			command = "ADDSlave " + entry.CipID + " " + entry.AddressSitename
 		}
 
+		response, err := SendTelnetCommand(touchpanel, command, true)
 		if err != nil {
 			status = append(status, "Error: "+err.Error())
 		} else {
-			status = append(status, resp)
+			status = append(status, response)
 		}
 	}
 
-	EvaluateNextStep(tp)
+	EvaluateNextStep(touchpanel)
 }
 
-func RetrieveIPTable(tp TouchpanelStatus) {
-	ipTable, err := getIPTable(tp.Address)
-
+func RetrieveIPTable(touchpanel TouchpanelStatus) {
+	ipTable, err := getIPTable(touchpanel.Address)
 	if err != nil {
-		// TODO: Decide what to do here
-		fmt.Printf("%s ERROR: %s\n", tp.Address, err.Error())
-		ReportError(tp, err)
-		return
-	}
-	tp.IPTable = ipTable
-	// fmt.Printf("%s Got the IPtable: %s\n", tp.Address, ipTable)
-	EvaluateNextStep(tp)
-}
-
-func UpdateFirmware(tp TouchpanelStatus) {
-	fmt.Printf("%s Firmware Update \n", tp.Address)
-
-	resp, err := SendTelnetCommand(tp, "puf", true)
-	if err != nil {
-		ReportError(tp, err)
+		fmt.Printf("%s ERROR: %s\n", touchpanel.Address, err.Error())
+		ReportError(touchpanel, err)
 		return
 	}
 
-	fmt.Printf("%s Return Value: %v\n", tp.Address, resp)
-
-	StartWait(tp)
+	touchpanel.IPTable = ipTable
+	EvaluateNextStep(touchpanel)
 }
 
-func RemoveOldFirmware(tp TouchpanelStatus) {
-	err := RemoveOldPUF(tp.Address)
+func UpdateFirmware(touchpanel TouchpanelStatus) {
+	fmt.Printf("%s Firmware Update \n", touchpanel.Address)
 
+	resp, err := SendTelnetCommand(touchpanel, "puf", true)
 	if err != nil {
-		// TODO: Decide what to do here
-		fmt.Printf("%s ERROR: %s\n", tp.Address, err.Error())
-		ReportError(tp, err)
+		ReportError(touchpanel, err)
 		return
 	}
 
-	EvaluateNextStep(tp)
+	fmt.Printf("%s Return Value: %v\n", touchpanel.Address, resp)
+
+	StartWait(touchpanel)
+}
+
+func RemoveOldFirmware(touchpanel TouchpanelStatus) {
+	err := RemoveOldPUF(touchpanel.Address)
+	if err != nil {
+		fmt.Printf("%s ERROR: %s\n", touchpanel.Address, err.Error())
+		ReportError(touchpanel, err)
+		return
+	}
+
+	EvaluateNextStep(touchpanel)
 }

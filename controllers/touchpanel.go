@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -97,11 +96,6 @@ func BuildControllerStartMultipleTPUpdate(submissionChannel chan<- helpers.Touch
 			tpList = append(tpList, touchpanel)
 		}
 
-		bits, err := json.Marshal(tpList)
-		if err != nil {
-
-		}
-
-		return c.JSON(http.StatusOK, bits)
+		return c.JSON(http.StatusOK, tpList)
 	}
 }

@@ -8,7 +8,7 @@ import (
 )
 
 func BuildTouchpanel(jobInfo JobInformation) TouchpanelStatus {
-	tp := TouchpanelStatus{
+	touchpanel := TouchpanelStatus{
 		Address:       jobInfo.Address,
 		Steps:         GetTouchpanelSteps(),
 		StartTime:     time.Now(),
@@ -21,17 +21,17 @@ func BuildTouchpanel(jobInfo JobInformation) TouchpanelStatus {
 	// get the Information from the API about the current firmware/Project date
 
 	// Temporary fix - assume everything is Tec HD
-	tp.Information = jobInfo.HDConfiguration
+	touchpanel.Information = jobInfo.HDConfiguration
 
-	UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("avengineers.byu.edu"+tp.Address+tp.RoomName))
-	tp.UUID = UUID.String()
+	UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("avengineers.byu.edu"+touchpanel.Address+touchpanel.RoomName))
+	touchpanel.UUID = UUID.String()
 
-	return tp
+	return touchpanel
 }
 
 func StartTP(jobInfo JobInformation) TouchpanelStatus {
 	touchpanel := BuildTouchpanel(jobInfo)
-	fmt.Printf("%s Starting.\n", touchpanel.Address)
+	fmt.Printf("%s Starting\n", touchpanel.Address)
 	go StartRun(touchpanel)
 
 	return touchpanel

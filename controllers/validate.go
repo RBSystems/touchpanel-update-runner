@@ -22,13 +22,13 @@ func Validate(c echo.Context) error {
 
 		info.Info[i].Batch = batch
 		info.Info[i].HDConfiguration = info.HDConfiguration
-		tp := helpers.BuildTouchpanel(info.Info[i])
-		tp.Address = strings.TrimSpace(tp.Address)
-		tp.CurrentStatus = "In progress"
-		tp.Hostname = "TEMP " + tp.UUID
-		helpers.ValidationChannel <- tp
+		touchpanel := helpers.BuildTouchpanel(info.Info[i])
+		touchpanel.Address = strings.TrimSpace(touchpanel.Address)
+		touchpanel.CurrentStatus = "In progress"
+		touchpanel.Hostname = "TEMP " + touchpanel.UUID
+		helpers.ValidationChannel <- touchpanel
 
-		go helpers.ValidateFunction(tp, 0)
+		go helpers.ValidateFunction(touchpanel, 0)
 	}
 
 	return c.JSON(http.StatusOK, "Done")

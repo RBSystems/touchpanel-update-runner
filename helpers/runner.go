@@ -65,59 +65,59 @@ func StartWait(curTP TouchpanelStatus) error {
 	return nil
 }
 
-func reportNotNeeded(tp TouchpanelStatus, status string) {
-	fmt.Printf("%s Not needed\n", tp.Address)
+func reportNotNeeded(touchpanel TouchpanelStatus, status string) {
+	fmt.Printf("%s Not needed\n", touchpanel.Address)
 
-	tp.CurrentStatus = status
-	tp.EndTime = time.Now()
-	UpdateChannel <- tp
+	touchpanel.CurrentStatus = status
+	touchpanel.EndTime = time.Now()
+	UpdateChannel <- touchpanel
 
-	SendToElastic(tp, 0)
+	SendToElastic(touchpanel, 0)
 }
 
-func reportSuccess(tp TouchpanelStatus) {
-	fmt.Printf("%s Success!\n", tp.Address)
+func reportSuccess(touchpanel TouchpanelStatus) {
+	fmt.Printf("%s Success!\n", touchpanel.Address)
 
-	tp.CurrentStatus = "Success"
-	tp.EndTime = time.Now()
-	UpdateChannel <- tp
+	touchpanel.CurrentStatus = "Success"
+	touchpanel.EndTime = time.Now()
+	UpdateChannel <- touchpanel
 
-	SendToElastic(tp, 0)
+	SendToElastic(touchpanel, 0)
 }
 
-func ReportError(tp TouchpanelStatus, err error) {
-	fmt.Printf("%s Reporting a failure  %s ...\n", tp.Address, err.Error())
+func ReportError(touchpanel TouchpanelStatus, err error) {
+	fmt.Printf("%s Reporting a failure: %s\n", touchpanel.Address, err.Error())
 
 	ipTable := false
 
 	// if we want to retry
-	fmt.Printf("%s Attempts: %v\n", tp.Address, tp.Attempts)
-	if tp.Attempts < 2 {
-		tp.Attempts++
+	fmt.Printf("%s Attempts: %v\n", touchpanel.Address, touchpanel.Attempts)
+	if touchpanel.Attempts < 2 {
+		touchpanel.Attempts++
 
-		fmt.Printf("%s Retring process.\n", tp.Address)
-		if tp.Steps[0].Completed {
+		fmt.Printf("%s Retrying process\n", touchpanel.Address)
+		if touchpanel.Steps[0].Completed {
 			ipTable = true
 		}
 
-		tp.Steps = GetTouchpanelSteps() // Reset the steps
+		touchpanel.Steps = GetTouchpanelSteps() // Reset the steps
 
 		if ipTable { // If the iptable was already populated
-			tp.Steps[0].Completed = true
+			touchpanel.Steps[0].Completed = true
 		}
 
-		UpdateChannel <- tp
+		UpdateChannel <- touchpanel
 
-		StartWait(tp) // There's no way to know what state we're in, run a wait
+		StartWait(touchpanel) // There's no way to know what state we're in, run a wait
 		return
 	}
 
-	tp.CurrentStatus = "Error"
-	tp.EndTime = time.Now()
-	tp.ErrorInfo = append(tp.ErrorInfo, err.Error())
-	UpdateChannel <- tp
+	touchpanel.CurrentStatus = "Error"
+	touchpanel.EndTime = time.Now()
+	touchpanel.ErrorInfo = append(touchpanel.ErrorInfo, err.Error())
+	UpdateChannel <- touchpanel
 
-	SendToElastic(tp, 0)
+	SendToElastic(touchpanel, 0)
 }
 
 func getIPTable(Address string) (IPTable, error) {

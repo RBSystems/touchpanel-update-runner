@@ -17,8 +17,8 @@ type TelnetRequest struct {
 	Prompt  string
 }
 
-func SendTelnetCommand(tp TouchpanelStatus, command string, tryAgain bool) (string, error) { // Sends telnet commands
-	var req = TelnetRequest{Address: tp.Address, Command: command, Prompt: "TSW-750>"}
+func SendTelnetCommand(touchpanel TouchpanelStatus, command string, tryAgain bool) (string, error) { // Sends telnet commands
+	var req = TelnetRequest{Address: touchpanel.Address, Command: command, Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
 	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS"), "application/json", bytes.NewBuffer(bits))
@@ -37,22 +37,22 @@ func SendTelnetCommand(tp TouchpanelStatus, command string, tryAgain bool) (stri
 	// TODO: Allow for multiple retries
 	if !validateCommand(str, command) {
 		if tryAgain {
-			fmt.Printf("%s bad output: %s \n", tp.Address, str)
-			fmt.Printf("%s Retrying command %s ...\n", tp.Address, command)
-			str, _ = SendTelnetCommand(tp, command, false) // Try again, but don't report
+			fmt.Printf("%s bad output: %s \n", touchpanel.Address, str)
+			fmt.Printf("%s Retrying command %s ...\n", touchpanel.Address, command)
+			str, _ = SendTelnetCommand(touchpanel, command, false) // Try again, but don't report
 		} else {
 			return "", errors.New("Issue with command: " + str)
 		}
 	}
 
-	step, _ := tp.GetCurrentStep()
-	tp.Steps[step].Info = str
+	step, _ := touchpanel.GetCurrentStep()
+	touchpanel.Steps[step].Info = str
 
 	return str, nil
 }
 
-func GetPrompt(tp TouchpanelStatus) (string, error) {
-	var req = TelnetRequest{Address: tp.Address, Command: "hostname"}
+func GetPrompt(touchpanel TouchpanelStatus) (string, error) {
+	var req = TelnetRequest{Address: touchpanel.Address, Command: "hostname"}
 	bits, _ := json.Marshal(req)
 
 	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS")+"/getPrompt", "application/json", bytes.NewBuffer(bits))
