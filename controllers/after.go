@@ -14,26 +14,26 @@ func AfterFTPHandle(context echo.Context) error {
 	fr := helpers.FtpRequest{}
 	context.Bind(&fr)
 
-	curTP := helpers.TouchpanelStatusMap[fr.Identifier]
+	currentTouchpanel := helpers.TouchpanelStatusMap[fr.Identifier]
 
-	fmt.Printf("%s Back from FTP\n", curTP.Address)
-	stepIndx, err := curTP.GetCurrentStep()
+	fmt.Printf("%s Back from FTP\n", currentTouchpanel.Address)
+	stepIndx, err := currentTouchpanel.GetCurrentStep()
 	if err != nil { // if we're already done
-		// go ReportCompletion(curTP)
+		// go ReportCompletion(currentTouchpanel)
 		return context.JSON(http.StatusBadRequest, "Error")
 	}
 
 	// PROBLEM: I'm not sure what's supposed to be saved here
-	curTP.Steps[stepIndx].Info = "Poots" // save the information about the wait into the step
+	currentTouchpanel.Steps[stepIndx].Info = "Poots" // save the information about the wait into the step
 
 	if !strings.EqualFold(fr.Status, "success") { // If we timed out
 		fmt.Printf("%s Error: %s \n %s \n", fr.Address, fr.Status, fr.Error)
-		curTP.CurrentStatus = "Error"
-		helpers.ReportError(curTP, errors.New("Problem waiting for restart"))
+		currentTouchpanel.CurrentStatus = "Error"
+		helpers.ReportError(currentTouchpanel, errors.New("Problem waiting for restart"))
 		return context.JSON(http.StatusBadRequest, "Problem waiting for restart")
 	}
 
-	helpers.StartWait(curTP)
+	helpers.StartWait(currentTouchpanel)
 
 	return context.JSON(http.StatusOK, "Done")
 }

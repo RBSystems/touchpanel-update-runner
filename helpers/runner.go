@@ -13,14 +13,14 @@ import (
 )
 
 // StartRun starts the touchpanel update process
-func StartRun(curTP TouchpanelStatus) {
-	curTP.Attempts++
+func StartRun(currentTouchpanel TouchpanelStatus) {
+	currentTouchpanel.Attempts++
 
-	curTP.Steps = GetTouchpanelSteps()
-	curTP.Attempts = 0 // We haven't tried yet
+	currentTouchpanel.Steps = GetTouchpanelSteps()
+	currentTouchpanel.Attempts = 0 // We haven't tried yet
 
 	// Get the hostname
-	response, err := SendTelnetCommand(curTP, "hostname", true)
+	response, err := SendTelnetCommand(currentTouchpanel, "hostname", true)
 	if err != nil {
 		fmt.Printf("Could not retrieve hostname")
 	}
@@ -29,19 +29,19 @@ func StartRun(curTP TouchpanelStatus) {
 		response = strings.Split(response, "Host Name:")[1]
 	}
 
-	curTP.Hostname = strings.TrimSpace(response)
+	currentTouchpanel.Hostname = strings.TrimSpace(response)
 
-	UpdateChannel <- curTP
+	UpdateChannel <- currentTouchpanel
 
-	EvaluateNextStep(curTP)
+	EvaluateNextStep(currentTouchpanel)
 }
 
-func StartWait(curTP TouchpanelStatus) error {
-	fmt.Printf("%s Sending to wait\n", curTP.Address)
+func StartWait(currentTouchpanel TouchpanelStatus) error {
+	fmt.Printf("%s Sending to wait\n", currentTouchpanel.Address)
 
-	req := WaitRequest{Address: curTP.Address, Port: 41795, CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterWait"}
+	req := WaitRequest{Address: currentTouchpanel.Address, Port: 41795, CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterWait"}
 
-	req.Identifier = curTP.UUID
+	req.Identifier = currentTouchpanel.UUID
 
 	bits, _ := json.Marshal(req)
 
@@ -117,35 +117,4 @@ func ReportError(touchpanel TouchpanelStatus, err error) {
 	UpdateChannel <- touchpanel
 
 	SendToElastic(touchpanel, 0)
-}
-
-func getIPTable(Address string) (IPTable, error) {
-	var toReturn = IPTable{}
-	// TODO: Make the prompt generic
-	var req = TelnetRequest{Address: Address, Command: "iptable"}
-
-	bits, _ := json.Marshal(req)
-
-	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS"), "application/json", bytes.NewBuffer(bits))
-
-	if err != nil {
-		return toReturn, err
-	}
-
-	bits, err = ioutil.ReadAll(resp.Body)
-
-	if err != nil {
-		return toReturn, err
-	}
-
-	err = json.Unmarshal(bits, &toReturn)
-	if err != nil {
-		return toReturn, err
-	}
-
-	if len(toReturn.Entries) < 1 {
-		return toReturn, errors.New("There were no entries in the IP Table, error.")
-	}
-
-	return toReturn, nil
 }

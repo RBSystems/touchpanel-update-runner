@@ -28,7 +28,7 @@ func main() {
 	go helpers.ValidateHelper()
 	go helpers.ChannelUpdater()
 
-	// Build a couple controllers--to have access to channels, controllers must be wrapped
+	// Build a couple controllers (to have access to channels, controllers must be wrapped)
 	touchpanelUpdateController := controllers.BuildControllerStartTouchpanelUpdate(submissionChannel)
 	multipleTouchpanelUpdatesController := controllers.BuildControllerStartMultipleTPUpdate(submissionChannel)
 
