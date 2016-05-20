@@ -27,8 +27,8 @@ func main() {
 	go helpers.ValidateHelper()
 
 	// Build a couple controllers--to have access to channels, controllers must be wrapped
-	startTouchpanelUpdateController := controllers.BuildControllerStartTouchpanelUpdate(submissionChannel)
-	startMultipleTouchpanelUpdatesController := controllers.BuildControllerStartMultipleTPUpdate(submissionChannel)
+	touchpanelUpdateController := controllers.BuildControllerStartTouchpanelUpdate(submissionChannel)
+	multipleTouchpanelUpdatesController := controllers.BuildControllerStartMultipleTPUpdate(submissionChannel)
 
 	port := ":8004"
 	e := echo.New()
@@ -41,11 +41,11 @@ func main() {
 	e.Get("/touchpanel/status/concise", controllers.GetAllTPStatusConcise)
 	e.Get("/touchpanel/:address/status", controllers.GetTPStatus)
 
-	e.Post("/touchpanel", startMultipleTouchpanelUpdatesController)
-	e.Post("/touchpanel/:address", startTouchpanelUpdateController)
+	e.Post("/touchpanel", multipleTouchpanelUpdatesController)
+	e.Post("/touchpanel/:address", touchpanelUpdateController)
 
-	e.Put("/touchpanel", startMultipleTouchpanelUpdatesController)
-	e.Put("/touchpanel/:address", startTouchpanelUpdateController)
+	e.Put("/touchpanel", multipleTouchpanelUpdatesController)
+	e.Put("/touchpanel/:address", touchpanelUpdateController)
 
 	// Callback
 	e.Post("/callback/afterWait", controllers.PostWait)
