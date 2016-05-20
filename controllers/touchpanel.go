@@ -1,31 +1,27 @@
 package controllers
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
 
-	"github.com/zenazn/goji/web"
+	"github.com/byuoitav/touchpanel-update-runner/helpers"
+	"github.com/labstack/echo"
 )
 
-func GetAllTPStatus(c web.C, w http.ResponseWriter, r *http.Request) {
-	var info []TouchpanelStatus
+func GetAllTPStatus(c echo.Context) error {
+	var info []helpers.TouchpanelStatus
 
-	for _, v := range TouchpanelStatusMap {
+	for _, v := range helpers.TouchpanelStatusMap {
 		info = append(info, v)
 	}
 
-	b, _ := json.Marshal(&info)
-
-	w.Header().Add("Content-Type", "application/json")
-	fmt.Fprintf(w, "%s", string(b))
+	return c.JSON(http.StatusOK, info)
 }
 
-func GetAllTPStatusConcise(c web.C, w http.ResponseWriter, r *http.Request) {
+func GetAllTPStatusConcise(c echo.Context) error {
 	var info []string
 	info = append(info, "IP\tStatus\tError\n")
 
-	for _, v := range TouchpanelStatusMap {
+	for _, v := range helpers.TouchpanelStatusMap {
 		if len(v.ErrorInfo) > 0 {
 			str := v.IPAddress + "\t" + v.CurrentStatus + "\t" + v.ErrorInfo[0]
 			info = append(info, str)
@@ -33,11 +29,7 @@ func GetAllTPStatusConcise(c web.C, w http.ResponseWriter, r *http.Request) {
 			str := v.IPAddress + "\t" + v.CurrentStatus + "\t" + ""
 			info = append(info, str)
 		}
-
 	}
 
-	b, _ := json.Marshal(&info)
-
-	w.Header().Add("Content-Type", "application/json")
-	fmt.Fprintf(w, "%s", string(b))
+	return c.JSON(http.StatusOK, info)
 }

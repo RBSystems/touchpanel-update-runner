@@ -81,35 +81,35 @@ func EvaluateNextStep(curTP TouchpanelStatus) {
 
 		go RetrieveIPTable(curTP)
 	case 1:
-		fmt.Printf("%s We've gotten IP Table.\n", curTP.IPAddress)
-		need, str := validateNeed(curTP, false)
+		fmt.Printf("%s We've gotten IP Table\n", curTP.IPAddress)
+		need, str := ValidateNeed(curTP, false)
 		if !need {
 			fmt.Printf("%s Not needed: %s\n", curTP.IPAddress, str)
 			reportNotNeeded(curTP, "Not Needed: "+str)
 			return
 		}
 
-		fmt.Printf("%s Done validating.\n", curTP.IPAddress)
+		fmt.Printf("%s Done validating\n", curTP.IPAddress)
 		CompleteStep(curTP, stepIndx, "Removing old Firmware")
 		go RemoveOldFirmware(curTP)
 	case 2:
-		fmt.Printf("%s Old Firmware removed.\n", curTP.IPAddress)
+		fmt.Printf("%s Old Firmware removed\n", curTP.IPAddress)
 		CompleteStep(curTP, stepIndx, "Initializing")
 
 		go Initialize(curTP)
 	case 3: // Initialize - next is copy firmware
-		fmt.Printf("%s Moving to copy firmware.\n", curTP.IPAddress)
+		fmt.Printf("%s Moving to copy firmware\n", curTP.IPAddress)
 
 		// Set status and update the
 		CompleteStep(curTP, stepIndx, "Sending Firmware")
 		go SendFirmware(curTP) // Ship this off concurrently - don't block
 	case 4:
-		fmt.Printf("%s Moving to update firmware.\n", curTP.IPAddress)
+		fmt.Printf("%s Moving to update firmware\n", curTP.IPAddress)
 
 		CompleteStep(curTP, stepIndx, "Updating Firmware")
 		go UpdateFirmware(curTP)
 	case 5:
-		fmt.Printf("%s Done updating firmware.\n", curTP.IPAddress)
+		fmt.Printf("%s Done updating firmware\n", curTP.IPAddress)
 		CompleteStep(curTP, stepIndx, "Sending Project")
 
 		go CopyProject(curTP)

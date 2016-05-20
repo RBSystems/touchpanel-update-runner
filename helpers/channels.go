@@ -17,6 +17,14 @@ func startTP(jobInfo jobInformation) TouchpanelStatus {
 	return tp
 }
 
+// Just update, so we can get around concurrent map write issues
+func ChannelUpdater() {
+	for true {
+		tpToUpdate := <-UpdateChannel
+		TouchpanelStatusMap[tpToUpdate.UUID] = tpToUpdate
+	}
+}
+
 func BuildControllerStartTouchpanelUpdate(submissionChannel chan<- TouchpanelStatus) func(c echo.Context) error {
 	return func(c echo.Context) error {
 		ipaddr := c.Param("ipAddress")
@@ -32,7 +40,7 @@ func BuildControllerStartTouchpanelUpdate(submissionChannel chan<- TouchpanelSta
 
 		tp := startTP(jobInfo)
 
-		c.JSON(http.StatusOK, tp)
+		return c.JSON(http.StatusOK, tp)
 	}
 }
 
@@ -69,6 +77,6 @@ func BuildStartMultipleTPUpdate(submissionChannel chan<- TouchpanelStatus) func(
 
 		}
 
-		c.JSON(http.StatusOK, bits)
+		return c.JSON(http.StatusOK, bits)
 	}
 }

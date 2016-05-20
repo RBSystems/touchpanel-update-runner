@@ -39,7 +39,7 @@ func StartRun(curTP TouchpanelStatus) {
 func startWait(curTP TouchpanelStatus) error {
 	fmt.Printf("%s Sending to wait\n", curTP.IPAddress)
 
-	var req = waitRequest{IPAddressHostname: curTP.IPAddress, Port: 41795, CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterWait"}
+	var req = WaitRequest{IPAddressHostname: curTP.IPAddress, Port: 41795, CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterWait"}
 
 	req.Identifier = curTP.UUID
 
@@ -85,7 +85,7 @@ func reportSuccess(tp TouchpanelStatus) {
 	SendToElastic(tp, 0)
 }
 
-func reportError(tp TouchpanelStatus, err error) {
+func ReportError(tp TouchpanelStatus, err error) {
 	fmt.Printf("%s Reporting a failure  %s ...\n", tp.IPAddress, err.Error())
 
 	ipTable := false

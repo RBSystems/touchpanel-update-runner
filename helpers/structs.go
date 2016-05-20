@@ -58,7 +58,7 @@ type ftpRequest struct {
 	Error             string    `json:",omitempty"`
 }
 
-type waitRequest struct {
+type WaitRequest struct {
 	IPAddressHostname string    // hostname to be pinged
 	Port              int       // port to be used when testing connection
 	Timeout           int       // Time in seconds to wait. Optional, will default to 300 seconds if not present or is 0
