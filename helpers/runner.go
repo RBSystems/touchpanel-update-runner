@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-// Starts the touchpanel update process
+// StartRun starts the touchpanel update process
 func StartRun(curTP TouchpanelStatus) {
 	curTP.Attempts++
 
@@ -39,17 +39,16 @@ func StartRun(curTP TouchpanelStatus) {
 func StartWait(curTP TouchpanelStatus) error {
 	fmt.Printf("%s Sending to wait\n", curTP.Address)
 
-	var req = WaitRequest{Address: curTP.Address, Port: 41795, CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterWait"}
+	req := WaitRequest{Address: curTP.Address, Port: 41795, CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterWait"}
 
 	req.Identifier = curTP.UUID
 
 	bits, _ := json.Marshal(req)
 
-	// we have to wait for the thing to actually restart - otherwise we'll return before it gets in a non-communicative state
+	// We have to wait for the touchpanel to actually restart otherwise we'll return before it can communicate
 	time.Sleep(10 * time.Second) // TODO: Shift this into our wait microservice
 
 	resp, err := http.Post(os.Getenv("WAIT_FOR_REBOOT_MICROSERVICE_ADDRESS"), "application/json", bytes.NewBuffer(bits))
-
 	if err != nil {
 		return err
 	}

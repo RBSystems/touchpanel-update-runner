@@ -8,17 +8,17 @@ import (
 	"github.com/labstack/echo"
 )
 
-func GetAllTPStatus(c echo.Context) error {
+func GetAllTouchpanelStatus(context echo.Context) error {
 	var info []helpers.TouchpanelStatus
 
 	for _, v := range helpers.TouchpanelStatusMap {
 		info = append(info, v)
 	}
 
-	return c.JSON(http.StatusOK, info)
+	return context.JSON(http.StatusOK, info)
 }
 
-func GetAllTPStatusConcise(c echo.Context) error {
+func GetAllTouchpanelStatusConcise(context echo.Context) error {
 	var info []string
 	info = append(info, "IP\tStatus\tError\n")
 
@@ -32,11 +32,11 @@ func GetAllTPStatusConcise(c echo.Context) error {
 		}
 	}
 
-	return c.JSON(http.StatusOK, info)
+	return context.JSON(http.StatusOK, info)
 }
 
-func GetTPStatus(c echo.Context) error {
-	ip := c.Param("ipAddress")
+func GetTPStatus(context echo.Context) error {
+	ip := context.Param("ipAddress")
 
 	var toReturn []helpers.TouchpanelStatus
 
@@ -46,16 +46,16 @@ func GetTPStatus(c echo.Context) error {
 		}
 	}
 
-	return c.JSON(http.StatusOK, toReturn)
+	return context.JSON(http.StatusOK, toReturn)
 }
 
-func BuildControllerStartTouchpanelUpdate(submissionChannel chan<- helpers.TouchpanelStatus) func(c echo.Context) error {
-	return func(c echo.Context) error {
-		address := c.Param("address")
+func BuildControllerStartTouchpanelUpdate(submissionChannel chan<- helpers.TouchpanelStatus) func(context echo.Context) error {
+	return func(context echo.Context) error {
+		address := context.Param("address")
 		batch := time.Now().Format(time.RFC3339)
 
 		jobInfo := helpers.JobInformation{}
-		c.Bind(jobInfo)
+		context.Bind(jobInfo)
 
 		jobInfo.Address = address
 		jobInfo.Batch = batch
@@ -64,14 +64,14 @@ func BuildControllerStartTouchpanelUpdate(submissionChannel chan<- helpers.Touch
 
 		touchpanel := helpers.StartTP(jobInfo)
 
-		return c.JSON(http.StatusOK, touchpanel)
+		return context.JSON(http.StatusOK, touchpanel)
 	}
 }
 
-func BuildControllerStartMultipleTPUpdate(submissionChannel chan<- helpers.TouchpanelStatus) func(c echo.Context) error {
-	return func(c echo.Context) error {
+func BuildControllerStartMultipleTPUpdate(submissionChannel chan<- helpers.TouchpanelStatus) func(context echo.Context) error {
+	return func(context echo.Context) error {
 		info := helpers.MultiJobInformation{}
-		c.Bind(&info)
+		context.Bind(&info)
 
 		// TODO: Check job information
 
@@ -96,6 +96,6 @@ func BuildControllerStartMultipleTPUpdate(submissionChannel chan<- helpers.Touch
 			tpList = append(tpList, touchpanel)
 		}
 
-		return c.JSON(http.StatusOK, tpList)
+		return context.JSON(http.StatusOK, tpList)
 	}
 }

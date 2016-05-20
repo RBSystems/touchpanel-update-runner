@@ -10,9 +10,9 @@ import (
 	"github.com/labstack/echo"
 )
 
-func AfterFTPHandle(c echo.Context) error {
+func AfterFTPHandle(context echo.Context) error {
 	fr := helpers.FtpRequest{}
-	c.Bind(&fr)
+	context.Bind(&fr)
 
 	curTP := helpers.TouchpanelStatusMap[fr.Identifier]
 
@@ -20,7 +20,7 @@ func AfterFTPHandle(c echo.Context) error {
 	stepIndx, err := curTP.GetCurrentStep()
 	if err != nil { // if we're already done
 		// go ReportCompletion(curTP)
-		return c.JSON(http.StatusBadRequest, "Error")
+		return context.JSON(http.StatusBadRequest, "Error")
 	}
 
 	// PROBLEM: I'm not sure what's supposed to be saved here
@@ -30,10 +30,10 @@ func AfterFTPHandle(c echo.Context) error {
 		fmt.Printf("%s Error: %s \n %s \n", fr.Address, fr.Status, fr.Error)
 		curTP.CurrentStatus = "Error"
 		helpers.ReportError(curTP, errors.New("Problem waiting for restart"))
-		return c.JSON(http.StatusBadRequest, "Problem waiting for restart")
+		return context.JSON(http.StatusBadRequest, "Problem waiting for restart")
 	}
 
 	helpers.StartWait(curTP)
 
-	return c.JSON(http.StatusOK, "Done")
+	return context.JSON(http.StatusOK, "Done")
 }

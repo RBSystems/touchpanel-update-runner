@@ -11,9 +11,9 @@ import (
 	"github.com/labstack/echo"
 )
 
-func PostWait(c echo.Context) error {
+func PostWait(context echo.Context) error {
 	wr := helpers.WaitRequest{}
-	c.Bind(&wr)
+	context.Bind(&wr)
 
 	fmt.Printf("%s Done Waiting\n", wr.Address)
 	curTP := helpers.TouchpanelStatusMap[wr.Identifier]
@@ -26,7 +26,7 @@ func PostWait(c echo.Context) error {
 	if err != nil { // if we're already done
 		fmt.Printf("%s Already done error %s\n", wr.Address, err.Error())
 		// go ReportCompletion(curTP)
-		return c.JSON(http.StatusBadRequest, err)
+		return context.JSON(http.StatusBadRequest, err)
 	}
 
 	b, _ := json.Marshal(&wr)
@@ -38,10 +38,10 @@ func PostWait(c echo.Context) error {
 		curTP.CurrentStatus = "Error"
 		fmt.Printf("%s Error %s\n", wr.Address, wr.Status)
 		helpers.ReportError(curTP, errors.New("Problem waiting for restart"))
-		return c.JSON(http.StatusBadRequest, "Problem waiting for restart")
+		return context.JSON(http.StatusBadRequest, "Problem waiting for restart")
 	}
 
 	helpers.EvaluateNextStep(curTP) // get the next step
 
-	return c.JSON(http.StatusOK, "Done")
+	return context.JSON(http.StatusOK, "Done")
 }

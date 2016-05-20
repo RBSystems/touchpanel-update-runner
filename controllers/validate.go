@@ -11,9 +11,9 @@ import (
 	"github.com/labstack/echo"
 )
 
-func Validate(c echo.Context) error {
+func Validate(context echo.Context) error {
 	info := helpers.MultiJobInformation{}
-	c.Bind(&info)
+	context.Bind(&info)
 
 	batch := time.Now().Format(time.RFC3339)
 
@@ -31,10 +31,10 @@ func Validate(c echo.Context) error {
 		go helpers.ValidateFunction(touchpanel, 0)
 	}
 
-	return c.JSON(http.StatusOK, "Done")
+	return context.JSON(http.StatusOK, "Done")
 }
 
-func GetValidationStatus(c echo.Context) error {
+func GetValidationStatus(context echo.Context) error {
 	hostnames := []string{}
 	values := make(map[string]helpers.TouchpanelStatus)
 
@@ -52,5 +52,5 @@ func GetValidationStatus(c echo.Context) error {
 		fmt.Println(cur.Hostname + "   " + cur.Address + "   " + cur.CurrentStatus)
 	}
 
-	return c.JSON(http.StatusOK, "Done")
+	return context.JSON(http.StatusOK, "Done")
 }

@@ -39,8 +39,8 @@ func main() {
 	e.Get("/health", health.Check)
 
 	// Touchpanels
-	e.Get("/touchpanel/status", controllers.GetAllTPStatus)
-	e.Get("/touchpanel/status/concise", controllers.GetAllTPStatusConcise)
+	e.Get("/touchpanel/status", controllers.GetAllTouchpanelStatus)
+	e.Get("/touchpanel/status/concise", controllers.GetAllTouchpanelStatusConcise)
 	e.Get("/touchpanel/:address/status", controllers.GetTPStatus)
 
 	e.Post("/touchpanel", multipleTouchpanelUpdatesController)
