@@ -46,7 +46,7 @@ func BuildControllerStartTouchpanelUpdate(submissionChannel chan<- TouchpanelSta
 
 func BuildStartMultipleTPUpdate(submissionChannel chan<- TouchpanelStatus) func(c echo.Context) error {
 	return func(c echo.Context) error {
-		info := multiJobInformation{}
+		info := MultiJobInformation{}
 		c.Bind(&info)
 
 		// TODO: Check job information

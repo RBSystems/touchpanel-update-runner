@@ -54,7 +54,7 @@ func main() {
 	// Validation
 	e.Get("/validate/touchpanels/status", controllers.GetValidationStatus)
 
-	e.Post("/validate/touchpanels", validate)
+	e.Post("/validate/touchpanels", controllers.Validate)
 
 	fmt.Printf("The Touchpanel Update Runner is listening on %s\n", port)
 	e.Run(fasthttp.New(port))

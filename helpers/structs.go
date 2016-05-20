@@ -32,7 +32,7 @@ type jobInformation struct {
 	FliptopConfiguration modelInformation // The information for the fliptop panels
 }
 
-type multiJobInformation struct {
+type MultiJobInformation struct {
 	HDConfiguration      modelInformation // The information for the HDTec panels
 	TecLiteConfiguraiton modelInformation // the information for the TecLite panels
 	FliptopConfiguration modelInformation // The information for the fliptop panels

@@ -4,10 +4,35 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
+	"time"
 
 	"github.com/byuoitav/touchpanel-update-runner/helpers"
 	"github.com/labstack/echo"
 )
+
+func Validate(c echo.Context) error {
+	info := helpers.MultiJobInformation{}
+	c.Bind(&info)
+
+	batch := time.Now().Format(time.RFC3339)
+
+	for i := range info.Info {
+		fmt.Printf("Buildling TP...")
+
+		info.Info[i].Batch = batch
+		info.Info[i].HDConfiguration = info.HDConfiguration
+		tp := helpers.BuildTouchpanel(info.Info[i])
+		tp.IPAddress = strings.TrimSpace(tp.IPAddress)
+		tp.CurrentStatus = "In progress"
+		tp.Hostname = "TEMP " + tp.UUID
+		helpers.ValidationChannel <- tp
+
+		go helpers.ValidateFunction(tp, 0)
+	}
+
+	return c.JSON(http.StatusOK, "Done")
+}
 
 func GetValidationStatus(c echo.Context) error {
 	hostnames := []string{}
