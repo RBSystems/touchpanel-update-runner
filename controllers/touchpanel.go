@@ -25,10 +25,10 @@ func GetAllTPStatusConcise(c echo.Context) error {
 
 	for _, v := range helpers.TouchpanelStatusMap {
 		if len(v.ErrorInfo) > 0 {
-			str := v.IPAddress + "\t" + v.CurrentStatus + "\t" + v.ErrorInfo[0]
+			str := v.Address + "\t" + v.CurrentStatus + "\t" + v.ErrorInfo[0]
 			info = append(info, str)
 		} else {
-			str := v.IPAddress + "\t" + v.CurrentStatus + "\t" + ""
+			str := v.Address + "\t" + v.CurrentStatus + "\t" + ""
 			info = append(info, str)
 		}
 	}
@@ -42,7 +42,7 @@ func GetTPStatus(c echo.Context) error {
 	var toReturn []helpers.TouchpanelStatus
 
 	for _, v := range helpers.TouchpanelStatusMap {
-		if v.IPAddress == ip {
+		if v.Address == ip {
 			toReturn = append(toReturn, v)
 		}
 	}
@@ -58,7 +58,7 @@ func BuildControllerStartTouchpanelUpdate(submissionChannel chan<- helpers.Touch
 		jobInfo := helpers.JobInformation{}
 		c.Bind(jobInfo)
 
-		jobInfo.IPAddress = address
+		jobInfo.Address = address
 		jobInfo.Batch = batch
 
 		// TODO: Check job information
@@ -80,7 +80,7 @@ func BuildControllerStartMultipleTPUpdate(submissionChannel chan<- helpers.Touch
 
 		tpList := []helpers.TouchpanelStatus{}
 		for j := range info.Info {
-			if info.Info[j].IPAddress == "" {
+			if info.Info[j].Address == "" {
 				tpList = append(tpList, helpers.TouchpanelStatus{
 					CurrentStatus: "Could not start, no IP Address provided.",
 					ErrorInfo:     []string{"No IP Address provided."}})

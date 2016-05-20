@@ -9,7 +9,7 @@ import (
 
 func BuildTouchpanel(jobInfo JobInformation) TouchpanelStatus {
 	tp := TouchpanelStatus{
-		IPAddress:     jobInfo.IPAddress,
+		Address:       jobInfo.Address,
 		Steps:         GetTouchpanelSteps(),
 		StartTime:     time.Now(),
 		Force:         jobInfo.Force,
@@ -23,7 +23,7 @@ func BuildTouchpanel(jobInfo JobInformation) TouchpanelStatus {
 	// Temporary fix - assume everything is Tec HD
 	tp.Information = jobInfo.HDConfiguration
 
-	UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("avengineers.byu.edu"+tp.IPAddress+tp.RoomName))
+	UUID, _ := uuid.NewV5(uuid.NamespaceURL, []byte("avengineers.byu.edu"+tp.Address+tp.RoomName))
 	tp.UUID = UUID.String()
 
 	return tp
@@ -31,7 +31,7 @@ func BuildTouchpanel(jobInfo JobInformation) TouchpanelStatus {
 
 func StartTP(jobInfo JobInformation) TouchpanelStatus {
 	touchpanel := BuildTouchpanel(jobInfo)
-	fmt.Printf("%s Starting.\n", touchpanel.IPAddress)
+	fmt.Printf("%s Starting.\n", touchpanel.Address)
 	go StartRun(touchpanel)
 
 	return touchpanel

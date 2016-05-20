@@ -11,14 +11,14 @@ import (
 )
 
 type TelnetRequest struct {
-	IPAddress string
-	Port      string
-	Command   string
-	Prompt    string
+	Address string
+	Port    string
+	Command string
+	Prompt  string
 }
 
 func SendTelnetCommand(tp TouchpanelStatus, command string, tryAgain bool) (string, error) { // Sends telnet commands
-	var req = TelnetRequest{IPAddress: tp.IPAddress, Command: command, Prompt: "TSW-750>"}
+	var req = TelnetRequest{Address: tp.Address, Command: command, Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
 	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS"), "application/json", bytes.NewBuffer(bits))
@@ -37,8 +37,8 @@ func SendTelnetCommand(tp TouchpanelStatus, command string, tryAgain bool) (stri
 	// TODO: Allow for multiple retries
 	if !validateCommand(str, command) {
 		if tryAgain {
-			fmt.Printf("%s bad output: %s \n", tp.IPAddress, str)
-			fmt.Printf("%s Retrying command %s ...\n", tp.IPAddress, command)
+			fmt.Printf("%s bad output: %s \n", tp.Address, str)
+			fmt.Printf("%s Retrying command %s ...\n", tp.Address, command)
 			str, _ = SendTelnetCommand(tp, command, false) // Try again, but don't report
 		} else {
 			return "", errors.New("Issue with command: " + str)
@@ -52,7 +52,7 @@ func SendTelnetCommand(tp TouchpanelStatus, command string, tryAgain bool) (stri
 }
 
 func GetPrompt(tp TouchpanelStatus) (string, error) {
-	var req = TelnetRequest{IPAddress: tp.IPAddress, Command: "hostname"}
+	var req = TelnetRequest{Address: tp.Address, Command: "hostname"}
 	bits, _ := json.Marshal(req)
 
 	resp, err := http.Post(os.Getenv("TELNET_MICROSERVICE_ADDRESS")+"/getPrompt", "application/json", bytes.NewBuffer(bits))

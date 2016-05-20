@@ -81,55 +81,55 @@ func EvaluateNextStep(curTP TouchpanelStatus) {
 
 		go RetrieveIPTable(curTP)
 	case 1:
-		fmt.Printf("%s We've gotten IP Table\n", curTP.IPAddress)
-		need, str := ValidateNeed(curTP, false)
+		fmt.Printf("%s We've gotten IP Table\n", curTP.Address)
+		need, str := ValidateNeedForUpdate(curTP, false)
 		if !need {
-			fmt.Printf("%s Not needed: %s\n", curTP.IPAddress, str)
+			fmt.Printf("%s Not needed: %s\n", curTP.Address, str)
 			reportNotNeeded(curTP, "Not Needed: "+str)
 			return
 		}
 
-		fmt.Printf("%s Done validating\n", curTP.IPAddress)
+		fmt.Printf("%s Done validating\n", curTP.Address)
 		CompleteStep(curTP, stepIndx, "Removing old Firmware")
 		go RemoveOldFirmware(curTP)
 	case 2:
-		fmt.Printf("%s Old Firmware removed\n", curTP.IPAddress)
+		fmt.Printf("%s Old Firmware removed\n", curTP.Address)
 		CompleteStep(curTP, stepIndx, "Initializing")
 
 		go InitializeTouchpanel(curTP)
 	case 3: // Initialize - next is copy firmware
-		fmt.Printf("%s Moving to copy firmware\n", curTP.IPAddress)
+		fmt.Printf("%s Moving to copy firmware\n", curTP.Address)
 
 		// Set status and update the
 		CompleteStep(curTP, stepIndx, "Sending Firmware")
 		go SendFirmware(curTP) // Ship this off concurrently - don't block
 	case 4:
-		fmt.Printf("%s Moving to update firmware\n", curTP.IPAddress)
+		fmt.Printf("%s Moving to update firmware\n", curTP.Address)
 
 		CompleteStep(curTP, stepIndx, "Updating Firmware")
 		go UpdateFirmware(curTP)
 	case 5:
-		fmt.Printf("%s Done updating firmware\n", curTP.IPAddress)
+		fmt.Printf("%s Done updating firmware\n", curTP.Address)
 		CompleteStep(curTP, stepIndx, "Sending Project")
 
 		go CopyProject(curTP)
 	case 6:
-		fmt.Printf("%s Project copied\n", curTP.IPAddress)
+		fmt.Printf("%s Project copied\n", curTP.Address)
 		CompleteStep(curTP, stepIndx, "Moving Project")
 
 		go moveProject(curTP)
 	case 7:
-		fmt.Printf("%s Project Moved\n", curTP.IPAddress)
+		fmt.Printf("%s Project Moved\n", curTP.Address)
 		CompleteStep(curTP, stepIndx, "Loading Project")
 
 		go loadProject(curTP)
 	case 8:
-		fmt.Printf("%s Project Loaded\n", curTP.IPAddress)
+		fmt.Printf("%s Project Loaded\n", curTP.Address)
 		CompleteStep(curTP, stepIndx, "Reload IPTable")
 
 		go ReloadIPTable(curTP)
 	case 9:
-		fmt.Printf("%s IPTable loaded\n", curTP.IPAddress)
+		fmt.Printf("%s IPTable loaded\n", curTP.Address)
 		CompleteStep(curTP, stepIndx, "Validating")
 
 		go validateTP(curTP)

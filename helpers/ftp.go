@@ -11,7 +11,7 @@ import (
 
 func SendFTPRequest(tp TouchpanelStatus, path string, file string) {
 	reqInfo := FtpRequest{
-		IPAddressHostname: tp.IPAddress,
+		Address: tp.Address,
 		CallbackAddress:   os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterFTP",
 		Path:              path,
 		File:              file,
@@ -28,5 +28,5 @@ func SendFTPRequest(tp TouchpanelStatus, path string, file string) {
 	defer resp.Body.Close()
 	b, _ = ioutil.ReadAll(resp.Body)
 
-	fmt.Printf("%s Submission response: %s\n", tp.IPAddress, b)
+	fmt.Printf("%s Submission response: %s\n", tp.Address, b)
 }

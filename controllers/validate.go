@@ -23,7 +23,7 @@ func Validate(c echo.Context) error {
 		info.Info[i].Batch = batch
 		info.Info[i].HDConfiguration = info.HDConfiguration
 		tp := helpers.BuildTouchpanel(info.Info[i])
-		tp.IPAddress = strings.TrimSpace(tp.IPAddress)
+		tp.Address = strings.TrimSpace(tp.Address)
 		tp.CurrentStatus = "In progress"
 		tp.Hostname = "TEMP " + tp.UUID
 		helpers.ValidationChannel <- tp
@@ -49,7 +49,7 @@ func GetValidationStatus(c echo.Context) error {
 
 	for h := range hostnames {
 		cur := values[hostnames[h]]
-		fmt.Println(cur.Hostname + "   " + cur.IPAddress + "   " + cur.CurrentStatus)
+		fmt.Println(cur.Hostname + "   " + cur.Address + "   " + cur.CurrentStatus)
 	}
 
 	return c.JSON(http.StatusOK, "Done")

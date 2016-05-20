@@ -7,7 +7,7 @@ import (
 )
 
 func ValidateFunction(tp TouchpanelStatus, retries int) {
-	need, str := ValidateNeed(tp, true)
+	need, str := ValidateNeedForUpdate(tp, true)
 	hostname, err := SendTelnetCommand(tp, "hostname", true)
 	if err != nil {
 		return
@@ -20,7 +20,7 @@ func ValidateFunction(tp TouchpanelStatus, retries int) {
 			tp.Hostname = strings.TrimSpace(hostname)
 		} else {
 			if retries < 2 {
-				fmt.Printf("%s retrying in 30 seconds...", tp.IPAddress)
+				fmt.Printf("%s retrying in 30 seconds...", tp.Address)
 				time.Sleep(30 * time.Second)
 				ValidateFunction(tp, retries+1) // Retry
 				return
@@ -29,11 +29,11 @@ func ValidateFunction(tp TouchpanelStatus, retries int) {
 	}
 
 	if need {
-		fmt.Printf("%s needed.", tp.IPAddress)
+		fmt.Printf("%s needed.", tp.Address)
 		tp.CurrentStatus = "Needed: " + str
 		ValidationChannel <- tp
 	} else {
-		fmt.Printf("%s Not needed.", tp.IPAddress)
+		fmt.Printf("%s Not needed.", tp.Address)
 		tp.CurrentStatus = "Up to date"
 		ValidationChannel <- tp
 	}

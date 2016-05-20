@@ -8,7 +8,7 @@ type TouchpanelStatus struct {
 	UUID            string // UUID that is assigned to each touchpanel
 	RoomName        string // the name of the room associate with this touchpanel
 	Type            string
-	IPAddress       string    // IPAddress of the touchpanel
+	Address         string    // Address of the touchpanel
 	StartTime       time.Time // Time the update process was started
 	EndTime         time.Time // Time the update process finished, or errored out
 	IPTable         IPTable   // The IPTable associated with this touchpanel
@@ -24,7 +24,7 @@ type TouchpanelStatus struct {
 
 type JobInformation struct {
 	Type                 []string // HDTec, TecLite, fliptop
-	IPAddress            string
+	Address              string
 	Force                bool
 	Batch                string
 	HDConfiguration      modelInformation // The information for the HDTec panels
@@ -44,29 +44,29 @@ type submissionRequest struct {
 }
 
 type FtpRequest struct {
-	IPAddressHostname string    `json:",omitempty"`
-	CallbackAddress   string    `json:",omitempty"`
-	Path              string    `json:",omitempty"`
-	File              string    `json:",omitempty"`
-	Identifier        string    `json:",omitempty"`
-	Timeout           int       `json:",omitempty"`
-	Username          string    `json:",omitempty"`
-	Password          string    `json:",omitempty"`
-	SubmissionTime    time.Time `json:",omitempty"`
-	CompletionTime    time.Time `json:",omitempty"`
-	Status            string    `json:",omitempty"`
-	Error             string    `json:",omitempty"`
+	Address         string    `json:",omitempty"`
+	CallbackAddress string    `json:",omitempty"`
+	Path            string    `json:",omitempty"`
+	File            string    `json:",omitempty"`
+	Identifier      string    `json:",omitempty"`
+	Timeout         int       `json:",omitempty"`
+	Username        string    `json:",omitempty"`
+	Password        string    `json:",omitempty"`
+	SubmissionTime  time.Time `json:",omitempty"`
+	CompletionTime  time.Time `json:",omitempty"`
+	Status          string    `json:",omitempty"`
+	Error           string    `json:",omitempty"`
 }
 
 type WaitRequest struct {
-	IPAddressHostname string    // hostname to be pinged
-	Port              int       // port to be used when testing connection
-	Timeout           int       // Time in seconds to wait. Optional, will default to 300 seconds if not present or is 0
-	CallbackAddress   string    // complete address to send the notification that the host is responding
-	SubmissionTime    time.Time // Will be filled by the server as the time the process started pinging
-	CompletionTime    time.Time // Will be filled by the service as the time that a) Sucessfully responded or b) timed out
-	Status            string    // Timeout or Success
-	Identifier        string    `json:",omitempty"` // Optional value to be passed in so the requester can identify the host when it's sent back
+	Address         string    // hostname to be pinged
+	Port            int       // port to be used when testing connection
+	Timeout         int       // Time in seconds to wait. Optional, will default to 300 seconds if not present or is 0
+	CallbackAddress string    // complete address to send the notification that the host is responding
+	SubmissionTime  time.Time // Will be filled by the server as the time the process started pinging
+	CompletionTime  time.Time // Will be filled by the service as the time that a) Sucessfully responded or b) timed out
+	Status          string    // Timeout or Success
+	Identifier      string    `json:",omitempty"` // Optional value to be passed in so the requester can identify the host when it's sent back
 }
 
 // Represents information needed to update the touchpanels
@@ -92,12 +92,12 @@ type IPTable struct {
 
 // IPEntry represents a single entry in the IPTable
 type IPEntry struct {
-	CipID             string `json:"CIP_ID"`
-	Type              string
-	Status            string
-	DevID             string
-	Port              string
-	IPAddressSitename string
+	CipID           string `json:"CIP_ID"`
+	Type            string
+	Status          string
+	DevID           string
+	Port            string
+	AddressSitename string
 }
 
 // Equals checks if two iptabels are equivalent
@@ -118,7 +118,7 @@ func (i *IPTable) Equals(compare IPTable) bool {
 func (e *IPEntry) Equals(compare IPEntry) bool {
 	if e.CipID != compare.CipID ||
 		e.DevID != compare.DevID ||
-		e.IPAddressSitename != compare.IPAddressSitename ||
+		e.AddressSitename != compare.AddressSitename ||
 		e.Port != compare.Port ||
 		e.Status != compare.Status ||
 		e.Type != compare.Type {

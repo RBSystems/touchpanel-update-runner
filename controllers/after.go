@@ -16,7 +16,7 @@ func AfterFTPHandle(c echo.Context) error {
 
 	curTP := helpers.TouchpanelStatusMap[fr.Identifier]
 
-	fmt.Printf("%s Back from FTP\n", curTP.IPAddress)
+	fmt.Printf("%s Back from FTP\n", curTP.Address)
 	stepIndx, err := curTP.GetCurrentStep()
 	if err != nil { // if we're already done
 		// go ReportCompletion(curTP)
@@ -27,7 +27,7 @@ func AfterFTPHandle(c echo.Context) error {
 	curTP.Steps[stepIndx].Info = "Poots" // save the information about the wait into the step
 
 	if !strings.EqualFold(fr.Status, "success") { // If we timed out
-		fmt.Printf("%s Error: %s \n %s \n", fr.IPAddressHostname, fr.Status, fr.Error)
+		fmt.Printf("%s Error: %s \n %s \n", fr.Address, fr.Status, fr.Error)
 		curTP.CurrentStatus = "Error"
 		helpers.ReportError(curTP, errors.New("Problem waiting for restart"))
 		return c.JSON(http.StatusBadRequest, "Problem waiting for restart")

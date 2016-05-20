@@ -37,9 +37,9 @@ func StartRun(curTP TouchpanelStatus) {
 }
 
 func StartWait(curTP TouchpanelStatus) error {
-	fmt.Printf("%s Sending to wait\n", curTP.IPAddress)
+	fmt.Printf("%s Sending to wait\n", curTP.Address)
 
-	var req = WaitRequest{IPAddressHostname: curTP.IPAddress, Port: 41795, CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterWait"}
+	var req = WaitRequest{Address: curTP.Address, Port: 41795, CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterWait"}
 
 	req.Identifier = curTP.UUID
 
@@ -66,7 +66,7 @@ func StartWait(curTP TouchpanelStatus) error {
 }
 
 func reportNotNeeded(tp TouchpanelStatus, status string) {
-	fmt.Printf("%s Not needed\n", tp.IPAddress)
+	fmt.Printf("%s Not needed\n", tp.Address)
 
 	tp.CurrentStatus = status
 	tp.EndTime = time.Now()
@@ -76,7 +76,7 @@ func reportNotNeeded(tp TouchpanelStatus, status string) {
 }
 
 func reportSuccess(tp TouchpanelStatus) {
-	fmt.Printf("%s Success!\n", tp.IPAddress)
+	fmt.Printf("%s Success!\n", tp.Address)
 
 	tp.CurrentStatus = "Success"
 	tp.EndTime = time.Now()
@@ -86,16 +86,16 @@ func reportSuccess(tp TouchpanelStatus) {
 }
 
 func ReportError(tp TouchpanelStatus, err error) {
-	fmt.Printf("%s Reporting a failure  %s ...\n", tp.IPAddress, err.Error())
+	fmt.Printf("%s Reporting a failure  %s ...\n", tp.Address, err.Error())
 
 	ipTable := false
 
 	// if we want to retry
-	fmt.Printf("%s Attempts: %v\n", tp.IPAddress, tp.Attempts)
+	fmt.Printf("%s Attempts: %v\n", tp.Address, tp.Attempts)
 	if tp.Attempts < 2 {
 		tp.Attempts++
 
-		fmt.Printf("%s Retring process.\n", tp.IPAddress)
+		fmt.Printf("%s Retring process.\n", tp.Address)
 		if tp.Steps[0].Completed {
 			ipTable = true
 		}
@@ -120,10 +120,10 @@ func ReportError(tp TouchpanelStatus, err error) {
 	SendToElastic(tp, 0)
 }
 
-func getIPTable(IPAddress string) (IPTable, error) {
+func getIPTable(Address string) (IPTable, error) {
 	var toReturn = IPTable{}
 	// TODO: Make the prompt generic
-	var req = TelnetRequest{IPAddress: IPAddress, Command: "iptable"}
+	var req = TelnetRequest{Address: Address, Command: "iptable"}
 
 	bits, _ := json.Marshal(req)
 

@@ -15,26 +15,26 @@ func SendToElastic(tp TouchpanelStatus, retry int) {
 
 	if err != nil {
 		if retry < 2 {
-			fmt.Printf("%s error posting to ELK %s. Trying again.\n", tp.IPAddress, err.Error())
+			fmt.Printf("%s error posting to ELK %s. Trying again.\n", tp.Address, err.Error())
 			SendToElastic(tp, retry+1)
 			return
 		}
 
-		fmt.Printf("%s Could not report to ELK. %s \n", tp.IPAddress, err.Error())
+		fmt.Printf("%s Could not report to ELK. %s \n", tp.Address, err.Error())
 	} else if resp.StatusCode > 299 || resp.StatusCode < 200 {
-		fmt.Printf("%s Status Code: %v\n", tp.IPAddress, resp.StatusCode)
+		fmt.Printf("%s Status Code: %v\n", tp.Address, resp.StatusCode)
 		b, _ := ioutil.ReadAll(resp.Body)
 
 		if retry < 2 {
-			fmt.Printf("%s error posting to ELK %s. Trying again.\n", tp.IPAddress, string(b))
+			fmt.Printf("%s error posting to ELK %s. Trying again.\n", tp.Address, string(b))
 			SendToElastic(tp, retry+1)
 			return
 		}
 
-		fmt.Printf("%s Could not report to ELK. %s \n", tp.IPAddress, string(b))
+		fmt.Printf("%s Could not report to ELK. %s \n", tp.Address, string(b))
 		return
 	}
 
 	defer resp.Body.Close()
-	fmt.Printf("%s Reported to ELK.\n", tp.IPAddress)
+	fmt.Printf("%s Reported to ELK.\n", tp.Address)
 }

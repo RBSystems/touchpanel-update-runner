@@ -11,7 +11,7 @@ func ChannelUpdater() {
 // ValidateHelper exists to avoid concurrent map write errors
 func ValidateHelper() {
 	for true { // Loop forever
-		toAdd := <-ValidationChannel              // Watch for new things in the ValidationChannel
-		ValidationStatus[toAdd.IPAddress] = toAdd // Add new things to the map that is queried when you ask for touchpanel status
+		toAdd := <-ValidationChannel            // Watch for new things in the ValidationChannel
+		ValidationStatus[toAdd.Address] = toAdd // Add new things to the map that is queried when you ask for touchpanel status
 	}
 }
