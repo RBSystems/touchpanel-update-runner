@@ -96,7 +96,7 @@ func EvaluateNextStep(curTP TouchpanelStatus) {
 		fmt.Printf("%s Old Firmware removed\n", curTP.IPAddress)
 		CompleteStep(curTP, stepIndx, "Initializing")
 
-		go Initialize(curTP)
+		go InitializeTouchpanel(curTP)
 	case 3: // Initialize - next is copy firmware
 		fmt.Printf("%s Moving to copy firmware\n", curTP.IPAddress)
 

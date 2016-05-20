@@ -6,26 +6,23 @@ import (
 	"time"
 )
 
-func ValidateHelper() {
-	for true {
-		toAdd := <-ValidationChannel
-		ValidationStatus[toAdd.IPAddress] = toAdd
-	}
-}
-
 func ValidateFunction(tp TouchpanelStatus, retries int) {
 	need, str := ValidateNeed(tp, true)
-	hostname, _ := SendCommand(tp, "hostname", true)
+	hostname, err := SendTelnetCommand(tp, "hostname", true)
+	if err != nil {
+		return
+	}
 
 	if hostname != "" {
 		hostname = strings.Split(hostname, ":")[1]
+
 		if hostname != "" {
 			tp.Hostname = strings.TrimSpace(hostname)
 		} else {
 			if retries < 2 {
 				fmt.Printf("%s retrying in 30 seconds...", tp.IPAddress)
 				time.Sleep(30 * time.Second)
-				ValidateFunction(tp, retries+1)
+				ValidateFunction(tp, retries+1) // Retry
 				return
 			}
 		}
@@ -37,7 +34,7 @@ func ValidateFunction(tp TouchpanelStatus, retries int) {
 		ValidationChannel <- tp
 	} else {
 		fmt.Printf("%s Not needed.", tp.IPAddress)
-		tp.CurrentStatus = "Up to date."
+		tp.CurrentStatus = "Up to date"
 		ValidationChannel <- tp
 	}
 }

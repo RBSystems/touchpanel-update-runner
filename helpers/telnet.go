@@ -17,7 +17,7 @@ type TelnetRequest struct {
 	Prompt    string
 }
 
-func SendCommand(tp TouchpanelStatus, command string, tryAgain bool) (string, error) { // Sends telnet commands
+func SendTelnetCommand(tp TouchpanelStatus, command string, tryAgain bool) (string, error) { // Sends telnet commands
 	var req = TelnetRequest{IPAddress: tp.IPAddress, Command: command, Prompt: "TSW-750>"}
 	bits, _ := json.Marshal(req)
 
@@ -39,7 +39,7 @@ func SendCommand(tp TouchpanelStatus, command string, tryAgain bool) (string, er
 		if tryAgain {
 			fmt.Printf("%s bad output: %s \n", tp.IPAddress, str)
 			fmt.Printf("%s Retrying command %s ...\n", tp.IPAddress, command)
-			str, _ = SendCommand(tp, command, false) // Try again, but don't report
+			str, _ = SendTelnetCommand(tp, command, false) // Try again, but don't report
 		} else {
 			return "", errors.New("Issue with command: " + str)
 		}

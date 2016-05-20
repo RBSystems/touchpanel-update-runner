@@ -20,7 +20,7 @@ func StartRun(curTP TouchpanelStatus) {
 	curTP.Attempts = 0 // We haven't tried yet
 
 	// Get the hostname
-	response, err := SendCommand(curTP, "hostname", true)
+	response, err := SendTelnetCommand(curTP, "hostname", true)
 	if err != nil {
 		fmt.Printf("Could not retrieve hostname")
 	}

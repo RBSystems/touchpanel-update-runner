@@ -13,18 +13,20 @@ import (
 )
 
 func main() {
-	helpers.TouchpanelStatusMap = make(map[string]helpers.TouchpanelStatus)
-	helpers.ValidationStatus = make(map[string]helpers.TouchpanelStatus)
-
 	flag.Parse()
 
 	// Build our channels
-	submissionChannel := make(chan helpers.TouchpanelStatus, 50)
-	helpers.UpdateChannel = make(chan helpers.TouchpanelStatus, 150)
-	helpers.ValidationChannel = make(chan helpers.TouchpanelStatus, 150)
+	submissionChannel := make(chan helpers.TouchpanelStatus, 50)         // Only used in server.go
+	helpers.UpdateChannel = make(chan helpers.TouchpanelStatus, 150)     // Global
+	helpers.ValidationChannel = make(chan helpers.TouchpanelStatus, 150) // Global
 
-	go helpers.ChannelUpdater()
+	// Populate miscellaneous globals
+	helpers.TouchpanelStatusMap = make(map[string]helpers.TouchpanelStatus)
+	helpers.ValidationStatus = make(map[string]helpers.TouchpanelStatus)
+
+	// Watch for new things in the channels
 	go helpers.ValidateHelper()
+	go helpers.ChannelUpdater()
 
 	// Build a couple controllers--to have access to channels, controllers must be wrapped
 	touchpanelUpdateController := controllers.BuildControllerStartTouchpanelUpdate(submissionChannel)
