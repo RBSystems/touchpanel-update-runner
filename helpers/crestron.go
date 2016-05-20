@@ -28,7 +28,7 @@ func loadProject(tp TouchpanelStatus) {
 	}
 	fmt.Printf("%s Return Value: %v\n", tp.IPAddress, resp)
 
-	startWait(tp)
+	StartWait(tp)
 }
 
 // Send the response of a telnet command to validate success, will return true
@@ -77,7 +77,7 @@ func moveProject(tp TouchpanelStatus) {
 
 	fmt.Printf("%s Reboot Return Value: %v\n", tp.IPAddress, resp)
 
-	startWait(tp)
+	StartWait(tp)
 }
 
 // Involved in the validation endpoints
@@ -96,7 +96,7 @@ func validateTP(tp TouchpanelStatus) {
 			tp.Steps[10].Attempts++
 			tp.Steps[9].Completed = false
 
-			startWait(tp)
+			StartWait(tp)
 			return
 		}
 	}
@@ -182,7 +182,7 @@ func Initialize(tp TouchpanelStatus) error {
 	}
 
 	// Wait for it to come back from initialize
-	err = startWait(tp)
+	err = StartWait(tp)
 	if err != nil {
 		return err
 	}
@@ -363,7 +363,7 @@ func UpdateFirmware(tp TouchpanelStatus) {
 
 	fmt.Printf("%s Return Value: %v\n", tp.IPAddress, resp)
 
-	startWait(tp)
+	StartWait(tp)
 }
 
 func RemoveOldFirmware(tp TouchpanelStatus) {

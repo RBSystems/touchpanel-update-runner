@@ -36,7 +36,7 @@ func StartRun(curTP TouchpanelStatus) {
 	EvaluateNextStep(curTP)
 }
 
-func startWait(curTP TouchpanelStatus) error {
+func StartWait(curTP TouchpanelStatus) error {
 	fmt.Printf("%s Sending to wait\n", curTP.IPAddress)
 
 	var req = WaitRequest{IPAddressHostname: curTP.IPAddress, Port: 41795, CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callbacks/afterWait"}
@@ -108,7 +108,7 @@ func ReportError(tp TouchpanelStatus, err error) {
 
 		UpdateChannel <- tp
 
-		startWait(tp) // Who knows what state, run a wait on them
+		StartWait(tp) // There's no way to know what state we're in, run a wait
 		return
 	}
 

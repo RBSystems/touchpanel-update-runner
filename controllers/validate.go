@@ -6,10 +6,10 @@ import (
 	"sort"
 
 	"github.com/byuoitav/touchpanel-update-runner/helpers"
-	"github.com/zenazn/goji/web"
+	"github.com/labstack/echo"
 )
 
-func GetValidationStatus(c web.C, w http.ResponseWriter, r *http.Request) {
+func GetValidationStatus(c echo.Context) error {
 	hostnames := []string{}
 	values := make(map[string]helpers.TouchpanelStatus)
 
@@ -22,10 +22,10 @@ func GetValidationStatus(c web.C, w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Length of Map: %v\n", len(helpers.ValidationStatus))
 	fmt.Printf("Length of hostnames: %v\n", len(hostnames))
 
-	w.Header().Add("Content-Type", "text/html")
-
 	for h := range hostnames {
 		cur := values[hostnames[h]]
-		fmt.Fprintf(w, "%s \t\t\t %s \t\t\t %s \n", cur.Hostname, cur.IPAddress, cur.CurrentStatus)
+		fmt.Println(cur.Hostname + "   " + cur.IPAddress + "   " + cur.CurrentStatus)
 	}
+
+	return c.JSON(http.StatusOK, "Done")
 }

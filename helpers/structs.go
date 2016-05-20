@@ -43,7 +43,7 @@ type submissionRequest struct {
 	CallbackAddress string
 }
 
-type ftpRequest struct {
+type FtpRequest struct {
 	IPAddressHostname string    `json:",omitempty"`
 	CallbackAddress   string    `json:",omitempty"`
 	Path              string    `json:",omitempty"`

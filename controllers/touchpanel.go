@@ -33,3 +33,17 @@ func GetAllTPStatusConcise(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, info)
 }
+
+func GetTPStatus(c echo.Context) error {
+	ip := c.Param("ipAddress")
+
+	var toReturn []helpers.TouchpanelStatus
+
+	for _, v := range helpers.TouchpanelStatusMap {
+		if v.IPAddress == ip {
+			toReturn = append(toReturn, v)
+		}
+	}
+
+	return c.JSON(http.StatusOK, toReturn)
+}

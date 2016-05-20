@@ -43,7 +43,7 @@ func validate(c web.C, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func validateHelper() {
+func ValidateHelper() {
 	for true {
 		toAdd := <-ValidationChannel
 		ValidationStatus[toAdd.IPAddress] = toAdd

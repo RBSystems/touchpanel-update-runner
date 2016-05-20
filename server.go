@@ -24,7 +24,7 @@ func main() {
 	helpers.ValidationChannel = make(chan helpers.TouchpanelStatus, 150)
 
 	go helpers.ChannelUpdater()
-	go validateHelper()
+	go helpers.ValidateHelper()
 
 	// Build our handlers--to have access to channels they must be wrapped
 	startTPUpdate := helpers.BuildControllerStartTouchpanelUpdate(submissionChannel)
@@ -39,7 +39,7 @@ func main() {
 	// Touchpanels
 	e.Get("/touchpanel/status", controllers.GetAllTPStatus)
 	e.Get("/touchpanel/status/concise", controllers.GetAllTPStatusConcise)
-	e.Get("/touchpanel/:ipAddress/status", getTPStatus)
+	e.Get("/touchpanel/:ipAddress/status", controllers.GetTPStatus)
 
 	e.Post("/touchpanel", startMultipleTPUpdate)
 	e.Post("/touchpanel/:ipAddress", startTPUpdate)
@@ -49,7 +49,7 @@ func main() {
 
 	// Callback
 	e.Post("/callback/afterWait", controllers.PostWait)
-	e.Post("/callback/afterFTP", afterFTPHandle)
+	e.Post("/callback/afterFTP", controllers.AfterFTPHandle)
 
 	// Validation
 	e.Get("/validate/touchpanels/status", controllers.GetValidationStatus)

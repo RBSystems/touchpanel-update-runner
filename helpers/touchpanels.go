@@ -1,13 +1,9 @@
 package helpers
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/nu7hatch/gouuid"
-	"github.com/zenazn/goji/web"
 )
 
 func BuildTouchpanel(jobInfo jobInformation) TouchpanelStatus {
@@ -30,25 +26,4 @@ func BuildTouchpanel(jobInfo jobInformation) TouchpanelStatus {
 	tp.UUID = UUID.String()
 
 	return tp
-}
-
-func GetTPStatus(c web.C, w http.ResponseWriter, r *http.Request) {
-	ip := c.URLParams["ipAddress"]
-
-	var toReturn []TouchpanelStatus
-
-	for _, v := range TouchpanelStatusMap {
-		if v.IPAddress == ip {
-			toReturn = append(toReturn, v)
-		}
-	}
-
-	b, err := json.Marshal(toReturn)
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "ERROR: %s\n", err.Error())
-	}
-	w.Header().Add("content-type", "application/json")
-	fmt.Fprintf(w, "%s", string(b))
 }
