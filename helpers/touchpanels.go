@@ -1,12 +1,13 @@
 package helpers
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/nu7hatch/gouuid"
 )
 
-func BuildTouchpanel(jobInfo jobInformation) TouchpanelStatus {
+func BuildTouchpanel(jobInfo JobInformation) TouchpanelStatus {
 	tp := TouchpanelStatus{
 		IPAddress:     jobInfo.IPAddress,
 		Steps:         GetTouchpanelSteps(),
@@ -26,4 +27,12 @@ func BuildTouchpanel(jobInfo jobInformation) TouchpanelStatus {
 	tp.UUID = UUID.String()
 
 	return tp
+}
+
+func StartTP(jobInfo JobInformation) TouchpanelStatus {
+	touchpanel := BuildTouchpanel(jobInfo)
+	fmt.Printf("%s Starting.\n", touchpanel.IPAddress)
+	go StartRun(touchpanel)
+
+	return touchpanel
 }

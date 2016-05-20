@@ -22,7 +22,7 @@ type TouchpanelStatus struct {
 	Steps           []step // List of steps in the update process
 }
 
-type jobInformation struct {
+type JobInformation struct {
 	Type                 []string // HDTec, TecLite, fliptop
 	IPAddress            string
 	Force                bool
@@ -36,7 +36,7 @@ type MultiJobInformation struct {
 	HDConfiguration      modelInformation // The information for the HDTec panels
 	TecLiteConfiguraiton modelInformation // the information for the TecLite panels
 	FliptopConfiguration modelInformation // The information for the fliptop panels
-	Info                 []jobInformation
+	Info                 []JobInformation
 }
 
 type submissionRequest struct {

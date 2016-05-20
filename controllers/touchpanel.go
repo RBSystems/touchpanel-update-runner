@@ -1,7 +1,9 @@
 package controllers
 
 import (
+	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/byuoitav/touchpanel-update-runner/helpers"
 	"github.com/labstack/echo"
@@ -46,4 +48,60 @@ func GetTPStatus(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, toReturn)
+}
+
+func BuildControllerStartTouchpanelUpdate(submissionChannel chan<- helpers.TouchpanelStatus) func(c echo.Context) error {
+	return func(c echo.Context) error {
+		address := c.Param("address")
+		batch := time.Now().Format(time.RFC3339)
+
+		jobInfo := helpers.JobInformation{}
+		c.Bind(jobInfo)
+
+		jobInfo.IPAddress = address
+		jobInfo.Batch = batch
+
+		// TODO: Check job information
+
+		touchpanel := helpers.StartTP(jobInfo)
+
+		return c.JSON(http.StatusOK, touchpanel)
+	}
+}
+
+func BuildControllerStartMultipleTPUpdate(submissionChannel chan<- helpers.TouchpanelStatus) func(c echo.Context) error {
+	return func(c echo.Context) error {
+		info := helpers.MultiJobInformation{}
+		c.Bind(&info)
+
+		// TODO: Check job information
+
+		batch := time.Now().Format(time.RFC3339)
+
+		tpList := []helpers.TouchpanelStatus{}
+		for j := range info.Info {
+			if info.Info[j].IPAddress == "" {
+				tpList = append(tpList, helpers.TouchpanelStatus{
+					CurrentStatus: "Could not start, no IP Address provided.",
+					ErrorInfo:     []string{"No IP Address provided."}})
+				continue
+			}
+
+			info.Info[j].HDConfiguration = info.HDConfiguration
+			info.Info[j].TecLiteConfiguraiton = info.TecLiteConfiguraiton
+			info.Info[j].FliptopConfiguration = info.FliptopConfiguration
+			info.Info[j].Batch = batch
+
+			touchpanel := helpers.StartTP(info.Info[j])
+
+			tpList = append(tpList, touchpanel)
+		}
+
+		bits, err := json.Marshal(tpList)
+		if err != nil {
+
+		}
+
+		return c.JSON(http.StatusOK, bits)
+	}
 }
