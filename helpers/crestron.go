@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,6 +13,12 @@ import (
 	"strings"
 	"time"
 )
+
+// Project represents loaded project information for a touchpanel
+type Project struct {
+	Project string `json:"project"`
+	Date    string `json:"date"`
+}
 
 func loadProject(touchpanel TouchpanelStatus) {
 	fmt.Printf("%s Loading Project \n", touchpanel.Address)
@@ -89,7 +96,7 @@ func validateTP(touchpanel TouchpanelStatus) {
 
 	// if the error was just IPTable try it again
 	if m["iptable"] == false && m["firmware"] == true && m["project"] == true {
-		fmt.Printf("%s iptable not loaded\n", touchpanel.Address)
+		fmt.Printf("%s IP table not loaded\n", touchpanel.Address)
 
 		if touchpanel.Steps[10].Attempts < 2 {
 			touchpanel.Steps[10].Attempts++
@@ -112,33 +119,51 @@ func validateTP(touchpanel TouchpanelStatus) {
 
 func getProjectVersion(touchpanel TouchpanelStatus, retry int) (modelInformation, error) {
 	fmt.Printf("%s Getting project info...\n", touchpanel.Address)
+	project := Project{}
 	info := modelInformation{}
 
-	rawData, err := SendTelnetCommand(touchpanel, "xget ~.LocalInfo.vtpage", true)
+	// rawData, err := SendTelnetCommand(touchpanel, "xget ~.LocalInfo.vtpage", true)
+	// if err != nil {
+	// 	return info, err
+	// }
+
+	response, err := http.Get(os.Getenv("TELNET_MICROSERVICE_ADDRESS") + "/project/" + touchpanel.Address)
 	if err != nil {
-		return info, err
+		return modelInformation{}, err
 	}
+
+	projectJSON, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return modelInformation{}, err
+	}
+
+	err = json.Unmarshal(projectJSON, &project)
+	if err != nil {
+		return modelInformation{}, err
+	}
+
+	fmt.Printf("%+v\n", project)
 
 	// We've tried to retrieve the vtpage at the same time as someone else. Wait for
 	// them to finish and try again
-	if strings.Contains(rawData, ":Could not") && retry < 2 {
-		fmt.Printf("%s Could not get project information, trying again in 45 seconds...\n", touchpanel.Address)
-		time.Sleep(45 * time.Second)
-		return getProjectVersion(touchpanel, retry+1)
-	}
+	// if strings.Contains(response, ":Could not") && retry < 2 {
+	// 	fmt.Printf("%s Could not get project information, trying again in 45 seconds...\n", touchpanel.Address)
+	// 	time.Sleep(45 * time.Second)
+	// 	return getProjectVersion(touchpanel, retry+1)
+	// }
 
-	re := regexp.MustCompile("VTZ=(.*?)\\nDate=(.*?)\\n") // we just want project title and date
+	// re := regexp.MustCompile("VTZ=(.*?)\\nDate=(.*?)\\n") // we just want project title and date
 
-	matches := re.FindStringSubmatch(string(rawData))
-	if matches == nil {
-		fmt.Printf("%s %s\n", touchpanel.Address, rawData)
-		return info, errors.New("Bad data returned")
-	}
+	// matches := re.FindStringSubmatch(string(response))
+	// if matches == nil {
+	// 	fmt.Printf("%s %s\n", touchpanel.Address, response)
+	// 	return info, errors.New("Bad data returned")
+	// }
 
-	fmt.Printf("%s Project Info: %+v\n", touchpanel.Address, matches)
-
-	info.ProjectLocation = strings.TrimSpace(matches[1])
-	info.ProjectDate = strings.TrimSpace(matches[2])
+	// fmt.Printf("%s Project Info: %+v\n", touchpanel.Address, matches)
+	//
+	// info.ProjectLocation = strings.TrimSpace(matches[1])
+	// info.ProjectDate = strings.TrimSpace(matches[2])
 
 	fmt.Printf("%s ProjectDate:%s  ProjectName: %s\n", touchpanel.Address, info.ProjectDate, info.ProjectLocation)
 
@@ -251,7 +276,7 @@ func doValidation(touchpanel TouchpanelStatus, ignoreTP bool) (map[string]bool, 
 	if !ignoreTP {
 		ipTable, _ := getIPTable(touchpanel.Address)
 
-		fmt.Printf("%s IPTABLE: %s\n", touchpanel.Address, ipTable)
+		fmt.Printf("%s IP table: %s\n", touchpanel.Address, ipTable)
 
 		if !ipTable.Equals(touchpanel.IPTable) {
 			toReturn["iptable"] = false

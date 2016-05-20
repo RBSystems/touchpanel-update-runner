@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -30,8 +29,6 @@ func getIPTable(address string) (IPTable, error) {
 	if err != nil {
 		return IPTable{}, err
 	}
-
-	fmt.Printf("%s\n", responseJSON)
 
 	err = json.Unmarshal(responseJSON, &iptable)
 	if err != nil {
