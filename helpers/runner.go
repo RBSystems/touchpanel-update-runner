@@ -39,21 +39,27 @@ func StartRun(currentTouchpanel TouchpanelStatus) {
 func StartWait(currentTouchpanel TouchpanelStatus) error {
 	fmt.Printf("%s Sending to wait\n", currentTouchpanel.Address)
 
-	req := WaitRequest{Address: currentTouchpanel.Address, Port: 41795, CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callback/wait"}
+	request := WaitRequest{Address: currentTouchpanel.Address, Port: 41795, CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callback/wait"}
 
-	req.Identifier = currentTouchpanel.UUID
+	request.Identifier = currentTouchpanel.UUID
 
-	bits, _ := json.Marshal(req)
+	requestJSON, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
 
 	// We have to wait for the touchpanel to actually restart otherwise we'll return before it can communicate
 	time.Sleep(10 * time.Second) // TODO: Shift this into our wait microservice
 
-	resp, err := http.Post(os.Getenv("WAIT_FOR_REBOOT_MICROSERVICE_ADDRESS")+"/submit", "application/json", bytes.NewBuffer(bits))
+	resp, err := http.Post(os.Getenv("WAIT_FOR_REBOOT_MICROSERVICE_ADDRESS")+"/submit", "application/json", bytes.NewBuffer(requestJSON))
 	if err != nil {
 		return err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
 
 	defer resp.Body.Close()
 

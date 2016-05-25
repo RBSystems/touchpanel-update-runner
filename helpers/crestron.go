@@ -33,7 +33,7 @@ func loadProject(touchpanel TouchpanelStatus) {
 		return
 	}
 
-	fmt.Printf("%s Return Value: %v\n", touchpanel.Address, resp)
+	fmt.Printf("%s Return value: %v\n", touchpanel.Address, resp)
 
 	StartWait(touchpanel)
 }
@@ -60,7 +60,7 @@ func validateCommand(output string, command string) bool {
 }
 
 func moveProject(touchpanel TouchpanelStatus) {
-	fmt.Printf("%s Moving Project\n", touchpanel.Address)
+	fmt.Printf("%s Moving project\n", touchpanel.Address)
 
 	filename := filepath.Base(touchpanel.Information.ProjectLocation)
 	command := "MOVEFILE /ROMDISK/user/system/" + filename + " /ROMDISK/user/Display"
@@ -71,7 +71,7 @@ func moveProject(touchpanel TouchpanelStatus) {
 		return
 	}
 
-	fmt.Printf("%s Move Return Value: %v\n", touchpanel.Address, resp)
+	fmt.Printf("%s Move return value: %v\n", touchpanel.Address, resp)
 
 	// Send Reboot command
 	command = "reboot"
@@ -81,7 +81,7 @@ func moveProject(touchpanel TouchpanelStatus) {
 		return
 	}
 
-	fmt.Printf("%s Reboot Return Value: %v\n", touchpanel.Address, resp)
+	fmt.Printf("%s Reboot return value: %v\n", touchpanel.Address, resp)
 
 	StartWait(touchpanel)
 }
@@ -118,7 +118,7 @@ func validateTP(touchpanel TouchpanelStatus) {
 }
 
 func getProjectVersion(touchpanel TouchpanelStatus, retry int) (modelInformation, error) {
-	fmt.Printf("%s Getting project info...\n", touchpanel.Address)
+	fmt.Printf("%s Getting project info\n", touchpanel.Address)
 	project := Project{}
 	info := modelInformation{}
 
@@ -132,12 +132,16 @@ func getProjectVersion(touchpanel TouchpanelStatus, retry int) (modelInformation
 		return modelInformation{}, err
 	}
 
-	projectJSON, err := ioutil.ReadAll(response.Body)
+	responseBody, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		return modelInformation{}, err
 	}
 
-	err = json.Unmarshal(projectJSON, &project)
+	if strings.Contains(string(responseBody), "File ~.LocalInfo.vtpage does not exist") {
+		return modelInformation{}, errors.New("Could not find project version info")
+	}
+
+	err = json.Unmarshal(responseBody, &project)
 	if err != nil {
 		return modelInformation{}, err
 	}
@@ -171,7 +175,7 @@ func getProjectVersion(touchpanel TouchpanelStatus, retry int) (modelInformation
 }
 
 func getFirmwareVersion(touchpanel TouchpanelStatus) (string, error) {
-	fmt.Printf("%s Getting Firmware Version\n", touchpanel.Address)
+	fmt.Printf("%s Getting firmware version\n", touchpanel.Address)
 
 	data, err := SendTelnetCommand(touchpanel, "ver", true)
 	if err != nil {
@@ -185,7 +189,7 @@ func getFirmwareVersion(touchpanel TouchpanelStatus) (string, error) {
 		return "", errors.New("Bad data returned")
 	}
 
-	fmt.Printf("%s Firmware Version: %s\n", touchpanel.Address, match[1])
+	fmt.Printf("%s Firmware version: %s\n", touchpanel.Address, match[1])
 
 	return match[1], nil
 }
@@ -250,13 +254,11 @@ func doValidation(touchpanel TouchpanelStatus, ignoreTP bool) (map[string]bool, 
 	toReturn := make(map[string]bool)
 	needed := false
 	// We need to validate IPTable, Firmware, and Project
-	projVer, err := getProjectVersion(touchpanel, 0)
+	project, err := getProjectVersion(touchpanel, 0)
 
-	if err != nil || !strings.EqualFold(projVer.ProjectDate, touchpanel.Information.ProjectDate) {
-		fmt.Printf("%s Return Ver: %s\n", touchpanel.Address, projVer.ProjectDate)
-		fmt.Printf("%s Needed Ver: %s\n", touchpanel.Address, touchpanel.ProjectDate)
+	if err != nil || !strings.EqualFold(project.ProjectDate, touchpanel.Information.ProjectDate) {
 		if err != nil {
-			fmt.Printf("%s ERROR: %s\n", touchpanel.Address, err.Error())
+			fmt.Printf("%s Error: %s\n", touchpanel.Address, err.Error())
 		}
 
 		toReturn["project"] = false
@@ -294,15 +296,15 @@ func doValidation(touchpanel TouchpanelStatus, ignoreTP bool) (map[string]bool, 
 }
 
 func CopyProject(touchpanel TouchpanelStatus) {
-	fmt.Printf("%s Clearing old project...\n", touchpanel.Address)
+	fmt.Printf("%s Clearing old project\n", touchpanel.Address)
 	SendTelnetCommand(touchpanel, "delete /ROMDISK/user/Display/*", true) // clear out space for the copy to succeed
 
-	fmt.Printf("%s Submitting to copy Project\n", touchpanel.Address)
+	fmt.Printf("%s Submitting to copy project\n", touchpanel.Address)
 	SendFTPRequest(touchpanel, "/FIRMWARE", touchpanel.Information.ProjectLocation)
 }
 
 func SendFirmware(touchpanel TouchpanelStatus) {
-	fmt.Printf("%s Submitting to move Firmware\n", touchpanel.Address)
+	fmt.Printf("%s Submitting to move firmware\n", touchpanel.Address)
 	SendFTPRequest(touchpanel, "/FIRMWARE", touchpanel.Information.FirmwareLocation)
 }
 
@@ -357,7 +359,7 @@ func ReloadIPTable(touchpanel TouchpanelStatus) {
 func RetrieveIPTable(touchpanel TouchpanelStatus) {
 	ipTable, err := getIPTable(touchpanel.Address)
 	if err != nil {
-		fmt.Printf("%s ERROR: %s\n", touchpanel.Address, err.Error())
+		fmt.Printf("%s Error: %s\n", touchpanel.Address, err.Error())
 		ReportError(touchpanel, err)
 		return
 	}
@@ -375,7 +377,7 @@ func UpdateFirmware(touchpanel TouchpanelStatus) {
 		return
 	}
 
-	fmt.Printf("%s Return Value: %v\n", touchpanel.Address, resp)
+	fmt.Printf("%s Return value: %v\n", touchpanel.Address, resp)
 
 	StartWait(touchpanel)
 }
@@ -383,7 +385,7 @@ func UpdateFirmware(touchpanel TouchpanelStatus) {
 func RemoveOldFirmware(touchpanel TouchpanelStatus) {
 	err := RemoveOldPUF(touchpanel.Address)
 	if err != nil {
-		fmt.Printf("%s ERROR: %s\n", touchpanel.Address, err.Error())
+		fmt.Printf("%s Error: %s\n", touchpanel.Address, err.Error())
 		ReportError(touchpanel, err)
 		return
 	}

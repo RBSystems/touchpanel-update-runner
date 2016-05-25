@@ -39,21 +39,6 @@ type MultiJobInformation struct {
 	Info                 []JobInformation
 }
 
-type FtpRequest struct {
-	Address         string    `json:",omitempty"`
-	CallbackAddress string    `json:",omitempty"`
-	Path            string    `json:",omitempty"`
-	File            string    `json:",omitempty"`
-	Identifier      string    `json:",omitempty"`
-	Timeout         int       `json:",omitempty"`
-	Username        string    `json:",omitempty"`
-	Password        string    `json:",omitempty"`
-	SubmissionTime  time.Time `json:",omitempty"`
-	CompletionTime  time.Time `json:",omitempty"`
-	Status          string    `json:",omitempty"`
-	Error           string    `json:",omitempty"`
-}
-
 type WaitRequest struct {
 	Address         string    // Address to be pinged
 	Port            int       // Port to be used when testing connection

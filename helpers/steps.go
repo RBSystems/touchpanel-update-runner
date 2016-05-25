@@ -69,14 +69,14 @@ func EvaluateNextStep(currentTouchpanel TouchpanelStatus) {
 	// DEBUG
 	// -----------------------------------------
 
-	stepIndx, err := currentTouchpanel.GetCurrentStep()
+	stepIndex, err := currentTouchpanel.GetCurrentStep()
 	if err != nil {
 		return
 	}
 
-	switch stepIndx { // determine where to go next
+	switch stepIndex { // determine where to go next
 	case 0:
-		CompleteStep(currentTouchpanel, stepIndx, "Validating")
+		CompleteStep(currentTouchpanel, stepIndex, "Validating")
 
 		go RetrieveIPTable(currentTouchpanel)
 	case 1:
@@ -89,47 +89,46 @@ func EvaluateNextStep(currentTouchpanel TouchpanelStatus) {
 		}
 
 		fmt.Printf("%s Done validating\n", currentTouchpanel.Address)
-		CompleteStep(currentTouchpanel, stepIndx, "Removing old Firmware")
+		CompleteStep(currentTouchpanel, stepIndex, "Removing old Firmware")
 		go RemoveOldFirmware(currentTouchpanel)
 	case 2:
 		fmt.Printf("%s Old Firmware removed\n", currentTouchpanel.Address)
-		CompleteStep(currentTouchpanel, stepIndx, "Initializing")
+		CompleteStep(currentTouchpanel, stepIndex, "Initializing")
 
 		go InitializeTouchpanel(currentTouchpanel)
 	case 3: // Initialize - next is copy firmware
 		fmt.Printf("%s Moving to copy firmware\n", currentTouchpanel.Address)
 
-		// Set status and update the
-		CompleteStep(currentTouchpanel, stepIndx, "Sending Firmware")
+		CompleteStep(currentTouchpanel, stepIndex, "Sending Firmware")
 		go SendFirmware(currentTouchpanel) // Ship this off concurrently - don't block
 	case 4:
 		fmt.Printf("%s Moving to update firmware\n", currentTouchpanel.Address)
 
-		CompleteStep(currentTouchpanel, stepIndx, "Updating Firmware")
+		CompleteStep(currentTouchpanel, stepIndex, "Updating Firmware")
 		go UpdateFirmware(currentTouchpanel)
 	case 5:
 		fmt.Printf("%s Done updating firmware\n", currentTouchpanel.Address)
-		CompleteStep(currentTouchpanel, stepIndx, "Sending Project")
+		CompleteStep(currentTouchpanel, stepIndex, "Sending Project")
 
 		go CopyProject(currentTouchpanel)
 	case 6:
 		fmt.Printf("%s Project copied\n", currentTouchpanel.Address)
-		CompleteStep(currentTouchpanel, stepIndx, "Moving Project")
+		CompleteStep(currentTouchpanel, stepIndex, "Moving Project")
 
 		go moveProject(currentTouchpanel)
 	case 7:
 		fmt.Printf("%s Project Moved\n", currentTouchpanel.Address)
-		CompleteStep(currentTouchpanel, stepIndx, "Loading Project")
+		CompleteStep(currentTouchpanel, stepIndex, "Loading Project")
 
 		go loadProject(currentTouchpanel)
 	case 8:
 		fmt.Printf("%s Project Loaded\n", currentTouchpanel.Address)
-		CompleteStep(currentTouchpanel, stepIndx, "Reload IPTable")
+		CompleteStep(currentTouchpanel, stepIndex, "Reload IPTable")
 
 		go ReloadIPTable(currentTouchpanel)
 	case 9:
 		fmt.Printf("%s IPTable loaded\n", currentTouchpanel.Address)
-		CompleteStep(currentTouchpanel, stepIndx, "Validating")
+		CompleteStep(currentTouchpanel, stepIndex, "Validating")
 
 		go validateTP(currentTouchpanel)
 	default:

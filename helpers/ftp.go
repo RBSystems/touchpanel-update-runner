@@ -7,15 +7,37 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"time"
 )
 
+type FTPRequest struct {
+	// Required fields
+	DestinationAddress   string `json:",omitempty"`
+	DestinationDirectory string `json:",omitempty"`
+	FileLocation         string `json:",omitempty"`
+	Filename             string `json:",omitempty"`
+	CallbackAddress      string `json:",omitempty"`
+
+	// Optional Fields
+	CallbackIdentifier string `json:",omitempty"`
+	Timeout            int    `json:",omitempty"`
+	UsernameFTP        string `json:",omitempty"`
+	PasswordFTP        string `json:",omitempty"`
+
+	// Fields not expected in request, will be filled by the service
+	SubmissionTime time.Time
+	CompletionTime time.Time
+	Status         string
+	Error          string
+}
+
 func SendFTPRequest(touchpanel TouchpanelStatus, path string, file string) {
-	reqInfo := FtpRequest{
-		Address:         touchpanel.Address,
-		CallbackAddress: os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callback/ftp",
-		Path:            path,
-		File:            file,
-		Identifier:      touchpanel.UUID,
+	reqInfo := FTPRequest{
+		DestinationAddress:   touchpanel.Address,
+		DestinationDirectory: path,
+		FileLocation:         file,
+		CallbackAddress:      os.Getenv("TOUCHPANEL_UPDATE_RUNNER_ADDRESS") + "/callback/ftp",
+		CallbackIdentifier:   touchpanel.UUID,
 	}
 
 	b, _ := json.Marshal(&reqInfo)
