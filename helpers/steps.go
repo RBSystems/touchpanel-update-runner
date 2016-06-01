@@ -57,8 +57,9 @@ func (touchpanelStatus *TouchpanelStatus) GetCurrentStep() (int, error) {
 	return 0, errors.New("Complete")
 }
 
-// TODO: Move all steps (0-3) to this paradigm
-func EvaluateNextStep(currentTouchpanel TouchpanelStatus) {
+func EvaluateNextStep(currentTouchpanel TouchpanelStatus) error {
+	// TODO: Move all steps (0-3) to this paradigm
+
 	// -----------------------------------------
 	// DEBUG
 	// -----------------------------------------
@@ -71,7 +72,7 @@ func EvaluateNextStep(currentTouchpanel TouchpanelStatus) {
 
 	stepIndex, err := currentTouchpanel.GetCurrentStep()
 	if err != nil {
-		return
+		return err
 	}
 
 	switch stepIndex { // determine where to go next
@@ -85,7 +86,7 @@ func EvaluateNextStep(currentTouchpanel TouchpanelStatus) {
 		if !need {
 			fmt.Printf("%s Not needed: %s\n", currentTouchpanel.Address, str)
 			reportNotNeeded(currentTouchpanel, "Not Needed: "+str)
-			return
+			return nil
 		}
 
 		fmt.Printf("%s Done validating\n", currentTouchpanel.Address)
@@ -96,11 +97,11 @@ func EvaluateNextStep(currentTouchpanel TouchpanelStatus) {
 		CompleteStep(currentTouchpanel, stepIndex, "Initializing")
 
 		go InitializeTouchpanel(currentTouchpanel)
-	case 3: // Initialize - next is copy firmware
+	case 3: // Initialize
 		fmt.Printf("%s Moving to copy firmware\n", currentTouchpanel.Address)
 
 		CompleteStep(currentTouchpanel, stepIndex, "Sending Firmware")
-		go SendFirmware(currentTouchpanel) // Ship this off concurrently - don't block
+		go SendFirmware(currentTouchpanel) // Don't block
 	case 4:
 		fmt.Printf("%s Moving to update firmware\n", currentTouchpanel.Address)
 
@@ -133,4 +134,6 @@ func EvaluateNextStep(currentTouchpanel TouchpanelStatus) {
 		go validateTP(currentTouchpanel)
 	default:
 	}
+
+	return nil
 }

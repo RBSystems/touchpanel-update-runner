@@ -65,8 +65,12 @@ func WaitCallback(context echo.Context) error {
 		return context.JSON(http.StatusBadRequest, err)
 	}
 
-	b, _ := json.Marshal(&request)
-	currentTouchpanel.Steps[stepIndex].Info = string(b) + "\n" + currentTouchpanel.Steps[stepIndex].Info // Save the information about the wait into the step
+	requestJSON, err := json.Marshal(&request)
+	if err != nil {
+		return err
+	}
+
+	currentTouchpanel.Steps[stepIndex].Info = string(requestJSON) + "\n" + currentTouchpanel.Steps[stepIndex].Info // Save the information about the wait into the step
 
 	fmt.Printf("%s Wait status: %s\n", request.Address, request.Status)
 
@@ -77,7 +81,10 @@ func WaitCallback(context echo.Context) error {
 		return context.JSON(http.StatusBadRequest, "Problem waiting for restart")
 	}
 
-	helpers.EvaluateNextStep(currentTouchpanel) // Get the next step
+	err = helpers.EvaluateNextStep(currentTouchpanel) // Get the next step
+	if err != nil {
+		return err
+	}
 
 	return context.JSON(http.StatusOK, "Done")
 }

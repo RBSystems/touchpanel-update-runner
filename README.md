@@ -2,7 +2,7 @@
 
 ![Circle CI Build Status](https://circleci.com/gh/byuoitav/touchpanel-update-runner/tree/master.svg?style=shield)
 
-### Installation
+### Setup
 You'll need the following ENV variables set on your machine to test and develop locally:
 ```
 export FTP_MICROSERVICE_ADDRESS="http://avmetrics1.byu.edu:8002"

@@ -31,8 +31,8 @@ type FTPRequest struct {
 	Error          string
 }
 
-func SendFTPRequest(touchpanel TouchpanelStatus, path string, file string) {
-	reqInfo := FTPRequest{
+func SendFTPRequest(touchpanel TouchpanelStatus, path string, file string) error {
+	request := FTPRequest{
 		DestinationAddress:   touchpanel.Address,
 		DestinationDirectory: path,
 		FileLocation:         file,
@@ -40,15 +40,23 @@ func SendFTPRequest(touchpanel TouchpanelStatus, path string, file string) {
 		CallbackIdentifier:   touchpanel.UUID,
 	}
 
-	b, _ := json.Marshal(&reqInfo)
+	requestJSON, err := json.Marshal(&request)
+	if err != nil {
+		return err
+	}
 
-	resp, err := http.Post(os.Getenv("FTP_MICROSERVICE_ADDRESS")+"/send", "application/json", bytes.NewBuffer(b))
+	response, err := http.Post(os.Getenv("FTP_MICROSERVICE_ADDRESS")+"/send", "application/json", bytes.NewBuffer(requestJSON))
 	if err != nil {
 		ReportError(touchpanel, err)
 	}
 
-	defer resp.Body.Close()
-	b, _ = ioutil.ReadAll(resp.Body)
+	defer response.Body.Close()
 
-	fmt.Printf("%s Submission response: %s\n", touchpanel.Address, b)
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s Submission response: %s\n", touchpanel.Address, body)
+	return nil
 }

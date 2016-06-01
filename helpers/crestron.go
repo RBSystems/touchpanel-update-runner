@@ -295,17 +295,27 @@ func doValidation(touchpanel TouchpanelStatus, ignoreTP bool) (map[string]bool, 
 	return toReturn, nil
 }
 
-func CopyProject(touchpanel TouchpanelStatus) {
+func CopyProject(touchpanel TouchpanelStatus) error {
 	fmt.Printf("%s Clearing old project\n", touchpanel.Address)
 	SendTelnetCommand(touchpanel, "delete /ROMDISK/user/Display/*", true) // clear out space for the copy to succeed
 
 	fmt.Printf("%s Submitting to copy project\n", touchpanel.Address)
-	SendFTPRequest(touchpanel, "/FIRMWARE", touchpanel.Information.ProjectLocation)
+	err := SendFTPRequest(touchpanel, "/FIRMWARE", touchpanel.Information.ProjectLocation)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func SendFirmware(touchpanel TouchpanelStatus) {
+func SendFirmware(touchpanel TouchpanelStatus) error {
 	fmt.Printf("%s Submitting to move firmware\n", touchpanel.Address)
-	SendFTPRequest(touchpanel, "/FIRMWARE", touchpanel.Information.FirmwareLocation)
+	err := SendFTPRequest(touchpanel, "/FIRMWARE", touchpanel.Information.FirmwareLocation)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func RemoveOldPUF(ipAddress string) error {
