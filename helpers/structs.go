@@ -52,10 +52,10 @@ type WaitRequest struct {
 
 // Represents information needed to update the touchpanels
 type modelInformation struct {
-	FirmwareLocation string // The location of the .puf file to be loaded
-	ProjectLocation  string // The locaton of the compiled project file to be loaded
-	ProjectDate      string // The compile date of the project to be loaded
-	FirmwareVersion  string // The version of the firmeware to be loaded
+	Firmware        string // The location of the .puf file to be loaded
+	FirmwareVersion string // The version of the firmeware to be loaded
+	Project         string // The locaton of the compiled project file to be loaded
+	ProjectDate     string // The compile date of the project to be loaded
 }
 
 // Defines one step, it's completion status, as well as any information gathered from the step

@@ -14,7 +14,10 @@ import (
 // FTPCallback is the endpoint we hit when a touchpanel comes back from the FTP microservice
 func FTPCallback(context echo.Context) error {
 	request := helpers.FTPRequest{}
-	context.Bind(&request)
+	err := context.Bind(&request)
+	if err != nil {
+		return err
+	}
 
 	currentTouchpanel := helpers.TouchpanelStatusMap[request.CallbackIdentifier]
 
@@ -25,8 +28,12 @@ func FTPCallback(context echo.Context) error {
 		return context.JSON(http.StatusBadRequest, "Error")
 	}
 
-	// TODO: I'm not sure what's supposed to be saved here (Joe was originally saving the raw body of the request)
-	currentTouchpanel.Steps[stepIndex].Info = "Poots" // Save the information about the wait into the step
+	requestJSON, err := json.Marshal(&request)
+	if err != nil {
+		return err
+	}
+
+	currentTouchpanel.Steps[stepIndex].Info = string(requestJSON) + "\n" + currentTouchpanel.Steps[stepIndex].Info // Save the information about the wait into the step
 
 	if !strings.EqualFold(request.Status, "success") { // If we timed out
 		fmt.Printf("%s Error: %s \n %s \n", request.DestinationAddress, request.Status, request.Error)

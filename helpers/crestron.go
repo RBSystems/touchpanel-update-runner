@@ -14,18 +14,12 @@ import (
 	"time"
 )
 
-// Project represents loaded project information for a touchpanel
-type Project struct {
-	Project string `json:"project"`
-	Date    string `json:"date"`
-}
-
 func loadProject(touchpanel TouchpanelStatus) {
-	fmt.Printf("%s Loading Project \n", touchpanel.Address)
+	fmt.Printf("%s Loading project\n", touchpanel.Address)
 
 	time.Sleep(60 * time.Second) // for some reason we keep getting issues with this. It won't load the project for a while
 
-	fmt.Printf("%s Sending project load\n", touchpanel.Address)
+	fmt.Printf("%s Initiating load of project\n", touchpanel.Address)
 	command := "projectload"
 	resp, err := SendTelnetCommand(touchpanel, command, true)
 	if err != nil {
@@ -62,7 +56,7 @@ func validateCommand(output string, command string) bool {
 func moveProject(touchpanel TouchpanelStatus) {
 	fmt.Printf("%s Moving project\n", touchpanel.Address)
 
-	filename := filepath.Base(touchpanel.Information.ProjectLocation)
+	filename := filepath.Base(touchpanel.Information.Project)
 	command := "MOVEFILE /ROMDISK/user/system/" + filename + " /ROMDISK/user/Display"
 
 	resp, err := SendTelnetCommand(touchpanel, command, true)
@@ -119,7 +113,6 @@ func validateTP(touchpanel TouchpanelStatus) {
 
 func getProjectVersion(touchpanel TouchpanelStatus, retry int) (modelInformation, error) {
 	fmt.Printf("%s Getting project info\n", touchpanel.Address)
-	project := Project{}
 	info := modelInformation{}
 
 	// rawData, err := SendTelnetCommand(touchpanel, "xget ~.LocalInfo.vtpage", true)
@@ -141,12 +134,12 @@ func getProjectVersion(touchpanel TouchpanelStatus, retry int) (modelInformation
 		return modelInformation{}, errors.New("Could not find project version info")
 	}
 
-	err = json.Unmarshal(responseBody, &project)
+	err = json.Unmarshal(responseBody, &info)
 	if err != nil {
 		return modelInformation{}, err
 	}
 
-	fmt.Printf("%+v\n", project)
+	fmt.Printf("%+v\n", info)
 
 	// We've tried to retrieve the vtpage at the same time as someone else. Wait for
 	// them to finish and try again
@@ -169,7 +162,7 @@ func getProjectVersion(touchpanel TouchpanelStatus, retry int) (modelInformation
 	// info.ProjectLocation = strings.TrimSpace(matches[1])
 	// info.ProjectDate = strings.TrimSpace(matches[2])
 
-	fmt.Printf("%s ProjectDate:%s  ProjectName: %s\n", touchpanel.Address, info.ProjectDate, info.ProjectLocation)
+	fmt.Printf("%s ProjectDate:%s  ProjectName: %s\n", touchpanel.Address, info.ProjectDate, info.Project)
 
 	return info, nil
 }
@@ -300,7 +293,7 @@ func CopyProject(touchpanel TouchpanelStatus) error {
 	SendTelnetCommand(touchpanel, "delete /ROMDISK/user/Display/*", true) // clear out space for the copy to succeed
 
 	fmt.Printf("%s Submitting to copy project\n", touchpanel.Address)
-	err := SendFTPRequest(touchpanel, "/FIRMWARE", touchpanel.Information.ProjectLocation)
+	err := SendFTPRequest(touchpanel, "/FIRMWARE", touchpanel.Information.Project)
 	if err != nil {
 		return err
 	}
@@ -310,7 +303,7 @@ func CopyProject(touchpanel TouchpanelStatus) error {
 
 func SendFirmware(touchpanel TouchpanelStatus) error {
 	fmt.Printf("%s Submitting to move firmware\n", touchpanel.Address)
-	err := SendFTPRequest(touchpanel, "/FIRMWARE", touchpanel.Information.FirmwareLocation)
+	err := SendFTPRequest(touchpanel, "/FIRMWARE", touchpanel.Information.Firmware)
 	if err != nil {
 		return err
 	}

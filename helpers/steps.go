@@ -98,12 +98,12 @@ func EvaluateNextStep(currentTouchpanel TouchpanelStatus) error {
 
 		go InitializeTouchpanel(currentTouchpanel)
 	case 3: // Initialize
-		fmt.Printf("%s Moving to copy firmware\n", currentTouchpanel.Address)
+		fmt.Printf("%s Copying firmware\n", currentTouchpanel.Address)
 
 		CompleteStep(currentTouchpanel, stepIndex, "Sending Firmware")
 		go SendFirmware(currentTouchpanel) // Don't block
 	case 4:
-		fmt.Printf("%s Moving to update firmware\n", currentTouchpanel.Address)
+		fmt.Printf("%s Updating firmware\n", currentTouchpanel.Address)
 
 		CompleteStep(currentTouchpanel, stepIndex, "Updating Firmware")
 		go UpdateFirmware(currentTouchpanel)
@@ -118,17 +118,17 @@ func EvaluateNextStep(currentTouchpanel TouchpanelStatus) error {
 
 		go moveProject(currentTouchpanel)
 	case 7:
-		fmt.Printf("%s Project Moved\n", currentTouchpanel.Address)
+		fmt.Printf("%s Project moved\n", currentTouchpanel.Address)
 		CompleteStep(currentTouchpanel, stepIndex, "Loading Project")
 
 		go loadProject(currentTouchpanel)
 	case 8:
-		fmt.Printf("%s Project Loaded\n", currentTouchpanel.Address)
+		fmt.Printf("%s Project loaded\n", currentTouchpanel.Address)
 		CompleteStep(currentTouchpanel, stepIndex, "Reload IPTable")
 
 		go ReloadIPTable(currentTouchpanel)
 	case 9:
-		fmt.Printf("%s IPTable loaded\n", currentTouchpanel.Address)
+		fmt.Printf("%s IP table loaded\n", currentTouchpanel.Address)
 		CompleteStep(currentTouchpanel, stepIndex, "Validating")
 
 		go validateTP(currentTouchpanel)
