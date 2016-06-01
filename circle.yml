@@ -1,0 +1,16 @@
+machine:
+  services:
+    - docker
+
+dependencies:
+  post:
+    - docker build -t byuoitav/touchpanel-update-runner:$CIRCLE_SHA1 .
+    - docker build -t byuoitav/touchpanel-update-runner:latest .
+
+deployment:
+  production:
+    branch: master
+    commands:
+      - docker login -e $DOCKER_EMAIL -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+      - docker push byuoitav/touchpanel-update-runner:$CIRCLE_SHA1
+      - docker push byuoitav/touchpanel-update-runner:latest
