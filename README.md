@@ -23,10 +23,10 @@ export ELASTICSEARCH_ADDRESS="http://search-byu-oit-av-metrics-ruenjnrqfuhghh7om
         "Force": false
     }],
     "HDConfiguration": {
-        "FirmwareLocation": "D:/Firmware/hdfirm.puf",
-        "ProjectLocation": "D:/Firmware/TECHD.vtz",
+        "Firmware": "https://dl.dropboxusercontent.com/u/9001515/tsx_1.501.0013.004.puf",
         "FirmwareVersion": "1.501.0013",
-        "ProjectDate": "March 29, 2016 8:27:32"
+        "Project": "https://dl.dropboxusercontent.com/u/9001515/TEC_HD.vtz",
+        "ProjectDate": "May 11, 2016 22:37:56"
     }
 }
 ```
