@@ -1,6 +1,6 @@
 # touchpanel-update-runner [![CircleCI](https://circleci.com/gh/byuoitav/touchpanel-update-runner.svg?style=svg)](https://circleci.com/gh/byuoitav/touchpanel-update-runner)
 
-### Setup
+## Setup
 You'll need the following ENV variables set on your machine to test and develop locally:
 ```
 export FTP_MICROSERVICE_ADDRESS="http://avmetrics1.byu.edu:8002"
@@ -10,7 +10,7 @@ export TOUCHPANEL_UPDATE_RUNNER_ADDRESS="http://10.5.34.118:8000"
 export ELASTICSEARCH_ADDRESS="http://search-byu-oit-av-metrics-ruenjnrqfuhghh7omvtmgcqe7m.us-west-1.es.amazonaws.com/tpupdates/"
 ```
 
-### Usage
+## Usage
 ```
 {
     "Info": [{
@@ -29,5 +29,5 @@ export ELASTICSEARCH_ADDRESS="http://search-byu-oit-av-metrics-ruenjnrqfuhghh7om
 }
 ```
 
-### Notes
+## Notes
 ![Whiteboard Picture](whiteboard.jpg)
