@@ -1,6 +1,4 @@
-# touchpanel-update-runner
-
-![Circle CI Build Status](https://circleci.com/gh/byuoitav/touchpanel-update-runner/tree/master.svg?style=shield)
+## touchpanel-update-runner [![CircleCI](https://circleci.com/gh/byuoitav/touchpanel-update-runner.svg?style=svg)](https://circleci.com/gh/byuoitav/touchpanel-update-runner)
 
 ### Setup
 You'll need the following ENV variables set on your machine to test and develop locally:
