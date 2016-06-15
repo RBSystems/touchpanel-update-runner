@@ -8,7 +8,7 @@ import (
 	"github.com/byuoitav/touchpanel-update-runner/helpers"
 	"github.com/jessemillar/health"
 	"github.com/labstack/echo"
-	"github.com/labstack/echo/engine/fasthttp"
+	"github.com/labstack/echo/engine/standard"
 	"github.com/labstack/echo/middleware"
 )
 
@@ -59,5 +59,5 @@ func main() {
 	e.Post("/validate/touchpanel", controllers.Validate)
 
 	fmt.Printf("The Touchpanel Update Runner is listening on %s\n", port)
-	e.Run(fasthttp.New(port))
+	e.Run(standard.New(port))
 }
