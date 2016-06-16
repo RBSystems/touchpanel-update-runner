@@ -8,7 +8,7 @@ import (
 	"github.com/byuoitav/touchpanel-update-runner/helpers"
 	"github.com/jessemillar/health"
 	"github.com/labstack/echo"
-	"github.com/labstack/echo/engine/standard"
+	"github.com/labstack/echo/engine/fasthttp"
 	"github.com/labstack/echo/middleware"
 )
 
@@ -33,31 +33,33 @@ func main() {
 	multipleTouchpanelUpdatesController := controllers.BuildControllerStartMultipleTPUpdate(submissionChannel)
 
 	port := ":8004"
-	e := echo.New()
-	e.Pre(middleware.RemoveTrailingSlash())
+	router := echo.New()
+	router.Pre(middleware.RemoveTrailingSlash())
 
-	e.Get("/health", health.Check)
+	router.Get("/health", health.Check)
 
 	// Touchpanels
-	e.Get("/touchpanel", controllers.GetAllTouchpanelStatus)
-	e.Get("/touchpanel/compact", controllers.GetAllTouchpanelStatusConcise)
-	e.Get("/touchpanel/:address", controllers.GetTouchpanelStatus)
+	router.Get("/touchpanel", controllers.GetAllTouchpanelStatus)
+	router.Get("/touchpanel/compact", controllers.GetAllTouchpanelStatusConcise)
+	router.Get("/touchpanel/:address", controllers.GetTouchpanelStatus)
 
-	e.Post("/touchpanel", multipleTouchpanelUpdatesController)
-	e.Post("/touchpanel/:address", touchpanelUpdateController)
+	router.Post("/touchpanel", multipleTouchpanelUpdatesController)
+	router.Post("/touchpanel/:address", touchpanelUpdateController)
 
-	e.Put("/touchpanel", multipleTouchpanelUpdatesController)
-	e.Put("/touchpanel/:address", touchpanelUpdateController)
+	router.Put("/touchpanel", multipleTouchpanelUpdatesController)
+	router.Put("/touchpanel/:address", touchpanelUpdateController)
 
 	// Callback
-	e.Post("/callback/wait", controllers.WaitCallback)
-	e.Post("/callback/ftp", controllers.FTPCallback)
+	router.Post("/callback/wait", controllers.WaitCallback)
+	router.Post("/callback/ftp", controllers.FTPCallback)
 
 	// Validation
-	e.Get("/validate/touchpanel", controllers.GetValidationStatus)
+	router.Get("/validate/touchpanel", controllers.GetValidationStatus)
 
-	e.Post("/validate/touchpanel", controllers.Validate)
+	router.Post("/validate/touchpanel", controllers.Validate)
 
 	fmt.Printf("The Touchpanel Update Runner is listening on %s\n", port)
-	e.Run(standard.New(port))
+	server := fasthttp.New(port)
+	server.ReadBufferSize = 1024 * 10 // Needed to interface properly with WSO2
+	router.Run(server)
 }
