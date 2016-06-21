@@ -1,10 +1,9 @@
 package main
 
 import (
-	"flag"
-	"fmt"
+	"log"
 
-	"github.com/byuoitav/touchpanel-update-runner/controllers"
+	"github.com/byuoitav/touchpanel-update-runner/handlers"
 	"github.com/byuoitav/touchpanel-update-runner/helpers"
 	"github.com/jessemillar/health"
 	"github.com/labstack/echo"
@@ -13,8 +12,6 @@ import (
 )
 
 func main() {
-	flag.Parse()
-
 	// Build our channels
 	submissionChannel := make(chan helpers.TouchpanelStatus, 50)         // Only used in server.go
 	helpers.UpdateChannel = make(chan helpers.TouchpanelStatus, 150)     // Global
@@ -28,9 +25,9 @@ func main() {
 	go helpers.ValidateHelper()
 	go helpers.ChannelUpdater()
 
-	// Build a couple controllers (to have access to channels, controllers must be wrapped)
-	touchpanelUpdateController := controllers.BuildControllerStartTouchpanelUpdate(submissionChannel)
-	multipleTouchpanelUpdatesController := controllers.BuildControllerStartMultipleTPUpdate(submissionChannel)
+	// Build a couple handlers (to have access to channels, handlers must be wrapped)
+	touchpanelUpdateHandler := handlers.BuildHandlerStartTouchpanelUpdate(submissionChannel)
+	multipleTouchpanelUpdatesHandler := handlers.BuildHandlerStartMultipleTPUpdate(submissionChannel)
 
 	port := ":8004"
 	router := echo.New()
@@ -39,26 +36,26 @@ func main() {
 	router.Get("/health", health.Check)
 
 	// Touchpanels
-	router.Get("/touchpanel", controllers.GetAllTouchpanelStatus)
-	router.Get("/touchpanel/compact", controllers.GetAllTouchpanelStatusConcise)
-	router.Get("/touchpanel/:address", controllers.GetTouchpanelStatus)
+	router.Get("/touchpanel", handlers.GetAllTouchpanelStatus)
+	router.Get("/touchpanel/compact", handlers.GetAllTouchpanelStatusConcise)
+	router.Get("/touchpanel/:address", handlers.GetTouchpanelStatus)
 
-	router.Post("/touchpanel", multipleTouchpanelUpdatesController)
-	router.Post("/touchpanel/:address", touchpanelUpdateController)
+	router.Post("/touchpanel", multipleTouchpanelUpdatesHandler)
+	router.Post("/touchpanel/:address", touchpanelUpdateHandler)
 
-	router.Put("/touchpanel", multipleTouchpanelUpdatesController)
-	router.Put("/touchpanel/:address", touchpanelUpdateController)
+	router.Put("/touchpanel", multipleTouchpanelUpdatesHandler)
+	router.Put("/touchpanel/:address", touchpanelUpdateHandler)
 
 	// Callback
-	router.Post("/callback/wait", controllers.WaitCallback)
-	router.Post("/callback/ftp", controllers.FTPCallback)
+	router.Post("/callback/wait", handlers.WaitCallback)
+	router.Post("/callback/ftp", handlers.FTPCallback)
 
 	// Validation
-	router.Get("/validate/touchpanel", controllers.GetValidationStatus)
+	router.Get("/validate/touchpanel", handlers.GetValidationStatus)
 
-	router.Post("/validate/touchpanel", controllers.Validate)
+	router.Post("/validate/touchpanel", handlers.Validate)
 
-	fmt.Printf("The Touchpanel Update Runner is listening on %s\n", port)
+	log.Println("The Touchpanel Update Runner is listening on " + port)
 	server := fasthttp.New(port)
 	server.ReadBufferSize = 1024 * 10 // Needed to interface properly with WSO2
 	router.Run(server)

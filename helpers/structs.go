@@ -16,8 +16,8 @@ type TouchpanelStatus struct {
 	ProjectDate     string    // The compile date of the project loaded on the device
 	Information     modelInformation
 	Batch           string // Batch for uploading to Elastic Search
-	Attempts        int    // number of times to attempt the update
-	Force           bool   // optional flag to bypass the validation and force the update
+	Attempts        int    // The number of times to attempt the update
+	Force           bool   // Optional boolean to bypass the validation and force the update
 	ErrorInfo       []string
 	Steps           []step // List of steps in the update process
 }
@@ -92,6 +92,7 @@ func (i *IPTable) Equals(compare IPTable) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -105,5 +106,6 @@ func (e *IPEntry) Equals(compare IPEntry) bool {
 		e.Type != compare.Type {
 		return false
 	}
+
 	return true
 }

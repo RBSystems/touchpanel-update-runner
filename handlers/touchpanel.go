@@ -1,4 +1,4 @@
-package controllers
+package handlers
 
 import (
 	"net/http"
@@ -57,7 +57,7 @@ func GetTouchpanelStatus(context echo.Context) error {
 	return context.JSON(http.StatusOK, toReturn)
 }
 
-func BuildControllerStartTouchpanelUpdate(submissionChannel chan<- helpers.TouchpanelStatus) func(context echo.Context) error {
+func BuildHandlerStartTouchpanelUpdate(submissionChannel chan<- helpers.TouchpanelStatus) func(context echo.Context) error {
 	return func(context echo.Context) error {
 		address := context.Param("address")
 		batch := time.Now().Format(time.RFC3339)
@@ -76,7 +76,7 @@ func BuildControllerStartTouchpanelUpdate(submissionChannel chan<- helpers.Touch
 	}
 }
 
-func BuildControllerStartMultipleTPUpdate(submissionChannel chan<- helpers.TouchpanelStatus) func(context echo.Context) error {
+func BuildHandlerStartMultipleTPUpdate(submissionChannel chan<- helpers.TouchpanelStatus) func(context echo.Context) error {
 	return func(context echo.Context) error {
 		info := helpers.MultiJobInformation{}
 		context.Bind(&info)
