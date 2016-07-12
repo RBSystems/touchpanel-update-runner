@@ -5,7 +5,7 @@
         "Key": ".dockercfg"
     },
     "Image": {
-        "Name": "byuoitav/touchpanel-update-runner:latest",
+        "Name": "byuoitav/touchpanel-update-runner:<TAG>",
         "Update": "true"
     },
     "Ports": [{
