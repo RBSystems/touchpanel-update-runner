@@ -1,13 +1,13 @@
 package main
 
 import (
-	"log"
+	"net/http"
 
+	"github.com/byuoitav/authmiddleware"
 	"github.com/byuoitav/touchpanel-update-runner/handlers"
 	"github.com/byuoitav/touchpanel-update-runner/helpers"
 	"github.com/jessemillar/health"
 	"github.com/labstack/echo"
-	"github.com/labstack/echo/engine/fasthttp"
 	"github.com/labstack/echo/middleware"
 )
 
@@ -32,31 +32,36 @@ func main() {
 	port := ":8004"
 	router := echo.New()
 	router.Pre(middleware.RemoveTrailingSlash())
+	router.Use(middleware.CORS())
 
-	router.Get("/health", health.Check)
+	router.GET("/health", echo.WrapHandler(http.HandlerFunc(health.Check)))
+
+	// Use the `secure` routing group to require authentication
+	secure := router.Group("", echo.WrapMiddleware(authmiddleware.Authenticate))
 
 	// Touchpanels
-	router.Get("/touchpanel", handlers.GetAllTouchpanelStatus)
-	router.Get("/touchpanel/compact", handlers.GetAllTouchpanelStatusConcise)
-	router.Get("/touchpanel/:address", handlers.GetTouchpanelStatus)
-
-	router.Post("/touchpanel", multipleTouchpanelUpdatesHandler)
-	router.Post("/touchpanel/:address", touchpanelUpdateHandler)
-
-	router.Put("/touchpanel", multipleTouchpanelUpdatesHandler)
-	router.Put("/touchpanel/:address", touchpanelUpdateHandler)
-
-	// Callback
-	router.Post("/callback/wait", handlers.WaitCallback)
-	router.Post("/callback/ftp", handlers.FTPCallback)
+	secure.GET("/touchpanel", handlers.GetAllTouchpanelStatus)
+	secure.GET("/touchpanel/compact", handlers.GetAllTouchpanelStatusConcise)
+	secure.GET("/touchpanel/:address", handlers.GetTouchpanelStatus)
 
 	// Validation
-	router.Get("/validate/touchpanel", handlers.GetValidationStatus)
+	secure.GET("/validate/touchpanel", handlers.GetValidationStatus)
 
-	router.Post("/validate/touchpanel", handlers.Validate)
+	secure.POST("/touchpanel", multipleTouchpanelUpdatesHandler)
+	secure.POST("/touchpanel/:address", touchpanelUpdateHandler)
 
-	log.Println("The Touchpanel Update Runner is listening on " + port)
-	server := fasthttp.New(port)
-	server.ReadBufferSize = 1024 * 10 // Needed to interface properly with WSO2
-	router.Run(server)
+	// Callback
+	secure.POST("/callback/wait", handlers.WaitCallback)
+	secure.POST("/callback/ftp", handlers.FTPCallback)
+	secure.POST("/validate/touchpanel", handlers.Validate)
+
+	secure.PUT("/touchpanel", multipleTouchpanelUpdatesHandler)
+	secure.PUT("/touchpanel/:address", touchpanelUpdateHandler)
+
+	server := http.Server{
+		Addr:           port,
+		MaxHeaderBytes: 1024 * 10,
+	}
+
+	router.StartServer(&server)
 }
