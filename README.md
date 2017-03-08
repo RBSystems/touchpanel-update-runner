@@ -1,5 +1,5 @@
 # touchpanel-update-runner
-[![CircleCI](https://img.shields.io/circleci/project/byuoitav/touchpanel-update-runner.svg)](https://circleci.com/gh/byuoitav/touchpanel-update-runner) [![Codecov](https://img.shields.io/codecov/c/github/byuoitav/touchpanel-update-runner.svg)](https://codecov.io/gh/byuoitav/touchpanel-update-runner) [![Apache 2 License](https://img.shields.io/hexpm/l/plug.svg)](https://raw.githubusercontent.com/byuoitav/touchpanel-update-runner/master/LICENSE)
+[![CircleCI](https://img.shields.io/circleci/project/byuoitav/touchpanel-update-runner.svg)](https://circleci.com/gh/byuoitav/touchpanel-update-runner) [![Apache 2 License](https://img.shields.io/hexpm/l/plug.svg)](https://raw.githubusercontent.com/byuoitav/touchpanel-update-runner/master/LICENSE)
 
 ## Setup
 You'll need the following ENV variables set on your machine to test and develop locally:
